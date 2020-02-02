@@ -98,7 +98,8 @@ namespace BrowserGameServer.GameSession
             SubResponses.Add("PlayerState", "WaitBegining");
             SubResponses.Add("IsCheckmate", "false");
             SubResponses.Add("TableState", "");
-            //SubResponses.Add("MoveState", "CurrentMove");
+            SubResponses.Add("InnerHeight", "");
+            SubResponses.Add("InnerWidth", "");
 
             if (PlayerOwner.Side == Side.White)
             {
@@ -160,16 +161,20 @@ namespace BrowserGameServer.GameSession
 
                 if (Session.IsGameBeginning())
                 {
-                    //////абсолютное значение координат, иначе рассинхрон координат между клиентами!!!!!!!!!!
-
                     //чья очередь ходить
                     if (PlayerOwner.PlayerStates == PlayerStates.ActiveLeading)
                     {
+                        this.Session.CurInnerHeight = ParsedWSRequest["InnerHeight"];
+                        this.Session.CurInnerWidth = ParsedWSRequest["InnerWidth"];
+
                         SubResponses["PlayerState"] = "ActiveLeading";
                         Session.CommonDataHub = ParsedWSRequest["TableState"];
                     }
                     if (PlayerOwner.PlayerStates == PlayerStates.ActiveWaiting)
                     {
+                        SubResponses["InnerHeight"] = this.Session.CurInnerHeight;
+                        SubResponses["InnerWidth"] = this.Session.CurInnerWidth;
+
                         SubResponses["PlayerState"] = "ActiveWaiting";
                         SubResponses["TableState"] = Session.CommonDataHub;
                     }
@@ -366,7 +371,7 @@ namespace BrowserGameServer.GameSession
         //PlayerState:...<delimiter>                                            сервер <--> клиенты
         //IsCheckmate:...<delimiter>                                            сервер <-- клиенты
         //TableState:(x1,y1);(x2,y2);...<delimiter>                             сервер <--> клиенты
-        //ContinueState:...<delimiter>                                          сервер <-- клиенты
+        //...
 
         //последняя строка это позиции шахмат в порядке их расположения в массиве отправителя, 
         //присланные клиентом 1, которые нужно передать клиенту 2

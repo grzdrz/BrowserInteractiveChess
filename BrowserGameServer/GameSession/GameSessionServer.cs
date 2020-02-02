@@ -42,6 +42,8 @@ namespace BrowserGameServer.GameSession
         Socket serverSocket;
 
         public string CommonDataHub = "";
+        public string CurInnerHeight = "";
+        public string CurInnerWidth = "";
 
         //запускаем сервер
         public GameSessionServer()

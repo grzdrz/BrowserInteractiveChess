@@ -54,17 +54,10 @@
                 Black: "Black",
                 White: "White"
             }
-            //let MoveStates = {
-            //    EndMove: "EndMove",
-            //    CurrentMove: "CurrentMove"
-            //}
-
             let GameState = GameStates.WaitBegining;
-            //let MoveState = MoveStates.CurrentMove;
             let PlayerSide;
 
-            //----------------------------------------------------------------------------
-
+            //Definition of table and chess-----------------------------------------------
             let canvas = document.querySelector("canvas");
             let context = canvas.getContext("2d");
             context.font = "22px Verdana";
@@ -106,10 +99,14 @@
 
             class Table {
                 constructor() {
-                    this.size = { width: 600, height: 600 };
+                    if (innerHeight < innerWidth)
+                        this.size = { width: innerHeight, height: innerHeight };
+                    else
+                        this.size = { width: innerWidth, height: innerWidth };
+
                     this.position = new Vector(canvas.width / 2 - this.size.width / 2, canvas.height / 2 - this.size.height / 2);
 
-                    this.arrayOfChess = [];
+                    this.dictOfChess = new Map();
 
                     this.img = new Image();
                     this.imgIsLoaded = false;
@@ -125,13 +122,18 @@
 
                 update() { }
 
-                addChess(chess) {//под позицией имеется ввиду двойной номер ячейки, а не координаты на холсте
-                    this.arrayOfChess.push(chess);
+                addChess(chess) {
+                    for(let e of this.dictOfChess){
+                        if(e[1].id === chess.id) return;
+                    }
+                    this.dictOfChess.set(chess.id, chess);
                 }
             }
 
             class Chess {
-                constructor(table, tPosition, side) {
+                constructor(table, tPosition, side, id) {
+                    this.id = id;
+                    
                     this.table = table;
                     this.size = { width: table.size.width / 8, height: table.size.height / 8 };
 
@@ -139,6 +141,9 @@
 
                     this.oldCanvasPos = getCanvasPosition(this, tPosition);
                     this.canvasPosition = getCanvasPosition(this, tPosition);
+
+                    //пропорция координат фигуры относительно координат стола, нужная для обмена координатами между хостами с разными размерами мониторов
+                    this.relativeFromTablePosition = getRelativeFromTablePosition(this);
 
                     this.side = side;
 
@@ -160,8 +165,8 @@
             }
 
             class Pawn extends Chess {
-                constructor(table, tPosition, side) {
-                    super(table, tPosition, side);
+                constructor(table, tPosition, side, id) {
+                    super(table, tPosition, side, id);
                     if (side === "Black") {
                         this.img.src = "/ChessWeb/PeshkaB.png";
                     }
@@ -170,33 +175,33 @@
                     }
                 }
 
-                allowedShift(shift_x, shift_y) {
-                    //если пешка никуда не ходит
-                    if (shift_x === 0 && shift_y === 0)
+                    allowedShift(shift_x, shift_y){
+                        //если пешка никуда не ходит
+                        if (shift_x === 0 && shift_y === 0)
                         return true;
-                    //ходы в бок, назад, либо вперед более чем на 1 клетку недопустимы
-                    if ((Math.abs(shift_x) > 0 && shift_y === 0) || shift_y > 1 || shift_y < 0)
+                        //ходы в бок, назад, либо вперед более чем на 1 клетку недопустимы
+                        if ((Math.abs(shift_x) > 0 && shift_y === 0) || shift_y > 1 || shift_y < 0)
                         return false;
-                    //двинуться по диагонали если есть фигура и она враг
-                    else if (shift_x !== 0 && shift_y !== 0 &&
-                        this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y))) {
-                        if (this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y)).side !== this.side)
-                            return true;
-                        else
-                            return false;
-                    }
-                    //двинуться вперед если никого нет
-                    else if (shift_x === 0 && shift_y !== 0 &&
-                        !(this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + shift_y)))) {
+                        //двинуться по диагонали если есть фигура и она враг
+                        else if (shift_x !== 0 && shift_y !== 0 &&
+                        Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y))){
+                        if(Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y)).side !== this.side)
                         return true;
+                        else
+                        return false; 
+                        }
+                        //двинуться вперед если никого нет
+                        else if (shift_x === 0 && shift_y !== 0 &&
+                        !(Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + shift_y)))){
+                        return true;
+                        }
+                        else return false;
                     }
-                    else return false;
-                }
             }
 
             class Queen extends Chess {
-                constructor(table, tPosition, side) {
-                    super(table, tPosition, side);
+                constructor(table, tPosition, side, id) {
+                    super(table, tPosition, side, id);
                     if (side === "Black") {
                         this.img.src = "/ChessWeb/QueenB.png";
                     }
@@ -218,17 +223,17 @@
                     if (shift_y > 0 && shift_x === 0) {
                         for (let i = this.tablePos.y; i < 8 && move_distance_down < Math.abs(shift_y); i++) {
                             move_distance_down += 1;
-                            if (this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down))) {
+                            if (Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down))) {
                                 //move_distance_down--;
                                 break;
                             }
                         }
                         if (shift_y <= move_distance_down &&
-                            !this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down))) {
+                            !Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down))) {
                             return true;
                         }
                         else if (shift_y <= move_distance_down &&
-                            this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down)).side !== this.side)
+                            Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down)).side !== this.side)
                             return true;
                     }
 
@@ -237,17 +242,17 @@
                     if (shift_y < 0 && shift_x === 0) {
                         for (let i = this.tablePos.y; i > 0 && move_distance_up < Math.abs(shift_y); i--) {
                             move_distance_up += 1;
-                            if (this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up))) {
+                            if (Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up))) {
                                 //move_distance_up--;
                                 break;
                             }
                         }
                         if (Math.abs(shift_y) <= move_distance_up &&
-                            !this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up))) {
+                            !Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up))) {
                             return true;
                         }
                         else if (Math.abs(shift_y) <= move_distance_up &&
-                            this.table.arrayOfChess.find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up)).side !== this.side)
+                            Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up)).side !== this.side)
                             return true;
                     }
                     /*
@@ -375,6 +380,12 @@
                 }
             }
 
+            function getRelativeFromTablePosition(chess){
+                let relativeX = (chess.canvasPosition.x - chess.table.position.x) / chess.table.size.width; 
+                let relativeY = (chess.canvasPosition.y - chess.table.position.y) / chess.table.size.height;  
+                return new Vector(relativeX, relativeY); 
+            }
+
             function getCanvasPosition(chess, tPosition) {
                 let x = tPosition.x * chess.size.width + chess.table.position.x;
                 let y = tPosition.y * chess.size.height + chess.table.position.y;
@@ -387,53 +398,27 @@
                 return new Vector(x, y);
             }
 
-            //обновление состояния холста(анимация холста)
-            function updateCanvas() {
-
-                context.clearRect(0, 0, canvas.width, canvas.height)
-
-                table.draw();
-                if (table.update)
-                    table.update();
-
-                for (let i = 0; i < table.arrayOfChess.length; i++) {
-                    //отрисовывает объект
-                    table.arrayOfChess[i].draw();
-                    //обновляет состояние объекта если внутри есть соответствующий метод
-                    if (table.arrayOfChess[i].update)
-                        table.arrayOfChess[i].update();
-                }
-
-                context.fillText("Player state: " + GameState, 20, 100);
-                context.fillText("Side: " + PlayerSide, 20, 120);
-                //context.fillText("MoveState: " + MoveState, 20, 140);
-
-                requestAnimationFrame(updateCanvas);
-            }
-
             let table = new Table();
 
-            new Pawn(table, new Vector(3, 1), "White");
-            new Pawn(table, new Vector(3, 2), "White");
-            new Pawn(table, new Vector(3, 6), "Black");
-            new Queen(table, new Vector(3, 4), "Black");
+            new Pawn(table, new Vector(3, 1), "White", 0);
+            new Pawn(table, new Vector(3, 2), "White", 1);
+            new Pawn(table, new Vector(3, 6), "Black", 2);
+            new Queen(table, new Vector(3, 4), "Black", 3);
 
-            canvas.addEventListener("mousedown", mouseDown);//////////////
+            canvas.addEventListener("mousedown", mouseDown);
             function mouseDown(event) {
-                if (GameState === "WaitBegining") { }
-                else if(GameState === "ActiveLeading"){
-
+                if(GameState === "ActiveLeading"){
                     let targetObj;//захваченный объект
                     let mousePosInObj;//координаты курсора внутри объекта относительно его верхнего левого угла
 
                     //перебираем объекты из массива объектов-шахмат в объекте доски и выполняем ивент для шахматы на которую указывает курсор
-                    for (let i = 0; i < table.arrayOfChess.length; i++) {
-                        if (event.clientX > table.arrayOfChess[i].canvasPosition.x &&
-                            event.clientX < table.arrayOfChess[i].canvasPosition.x + table.arrayOfChess[i].size.width &&
-                            event.clientY > table.arrayOfChess[i].canvasPosition.y &&
-                            event.clientY < table.arrayOfChess[i].canvasPosition.y + table.arrayOfChess[i].size.height) {
+                    for(let pairIdChess of table.dictOfChess){
+                        if(event.clientX > pairIdChess[1].canvasPosition.x &&
+                        event.clientX < pairIdChess[1].canvasPosition.x + pairIdChess[1].size.width &&
+                        event.clientY > pairIdChess[1].canvasPosition.y && 
+                        event.clientY < pairIdChess[1].canvasPosition.y + pairIdChess[1].size.height){
 
-                            targetObj = table.arrayOfChess[i];
+                            targetObj = pairIdChess[1];
                             if (PlayerSide !== targetObj.side) break;
 
                             targetObj.oldCanvasPos.x = targetObj.canvasPosition.x;
@@ -449,14 +434,22 @@
                     }
 
                     function mouseMove(event) {
-                        targetObj.canvasPosition.x = event.clientX - mousePosInObj.dx;
-                        targetObj.canvasPosition.y = event.clientY - mousePosInObj.dy;
-                        if (GameState === "ActiveWaiting") {
+                        targetObj.relativeFromTablePosition.x = (event.clientX - targetObj.table.position.x - mousePosInObj.dx) / targetObj.table.size.width; 
+                        targetObj.relativeFromTablePosition.y = (event.clientY - targetObj.table.position.y - mousePosInObj.dy) / targetObj.table.size.height;
+       
+                        targetObj.canvasPosition.x = targetObj.table.position.x + targetObj.relativeFromTablePosition.x * targetObj.table.size.width;
+                        targetObj.canvasPosition.y = targetObj.table.position.y + targetObj.relativeFromTablePosition.y * targetObj.table.size.height;
+
+                        if (GameState === "ActiveWaiting") {//на всякий случай
                             canvas.removeEventListener("mousemove", mouseMove);
                             canvas.removeEventListener("mouseup", mouseUp);
-                            targetObj.canvasPosition.x = targetObj.oldCanvasPos.x;
-                            targetObj.canvasPosition.y = targetObj.oldCanvasPos.y;
-                        }
+
+                            targetObj.relativeFromTablePosition.x = (targetObj.oldCanvasPos.x - targetObj.table.position.x) / targetObj.table.size.width;
+                            targetObj.relativeFromTablePosition.y = (targetObj.oldCanvasPos.y - targetObj.table.position.y) / targetObj.table.size.height;
+
+                            targetObj.canvasPosition.x = targetObj.table.position.x + targetObj.relativeFromTablePosition.x * targetObj.table.size.width;
+                            targetObj.canvasPosition.y = targetObj.table.position.y + targetObj.relativeFromTablePosition.y * targetObj.table.size.height;
+                        } 
                     }
 
                     function mouseUp(event) {
@@ -471,33 +464,51 @@
                             dy: tPos.y - targetObj.tablePos.y
                         };
 
+                        //если объект отпускают в исходной клетке, то его возвращает в исходную позицию
                         if (event.clientX > targetObj.oldCanvasPos.x && event.clientX < targetObj.oldCanvasPos.x + targetObj.size.width &&
                             event.clientY > targetObj.oldCanvasPos.y && event.clientY < targetObj.oldCanvasPos.y + targetObj.size.height) {
-                            targetObj.canvasPosition.x = targetObj.oldCanvasPos.x;
-                            targetObj.canvasPosition.y = targetObj.oldCanvasPos.y;
+                            targetObj.relativeFromTablePosition.x = (targetObj.oldCanvasPos.x - targetObj.table.position.x) / targetObj.table.size.width;
+                            targetObj.relativeFromTablePosition.y = (targetObj.oldCanvasPos.y - targetObj.table.position.y) / targetObj.table.size.height;
+
+                            targetObj.canvasPosition.x = targetObj.table.position.x + targetObj.relativeFromTablePosition.x * targetObj.table.size.width;
+                            targetObj.canvasPosition.y = targetObj.table.position.y + targetObj.relativeFromTablePosition.y * targetObj.table.size.height;
                         }
                         //если объект отпускают за пределами доски, то его возвращает в исходную позицию
                         else if (!(event.clientX > table.position.x && event.clientY > table.position.y &&
                             event.clientX < table.position.x + table.size.width && event.clientY < table.position.y + table.size.height)) {
-                            targetObj.canvasPosition.x = targetObj.oldCanvasPos.x;
-                            targetObj.canvasPosition.y = targetObj.oldCanvasPos.y;
+                            targetObj.relativeFromTablePosition.x = (targetObj.oldCanvasPos.x - targetObj.table.position.x) / targetObj.table.size.width;
+                            targetObj.relativeFromTablePosition.y = (targetObj.oldCanvasPos.y - targetObj.table.position.y) / targetObj.table.size.height;
+
+                            targetObj.canvasPosition.x = targetObj.table.position.x + targetObj.relativeFromTablePosition.x * targetObj.table.size.width;
+                            targetObj.canvasPosition.y = targetObj.table.position.y + targetObj.relativeFromTablePosition.y * targetObj.table.size.height;
                         }
                         //проверка на возможность сходить в данную клетку данной фигурой
                         else if (!targetObj.allowedShift(shift.dx, shift.dy)) {
-                            targetObj.canvasPosition.x = targetObj.oldCanvasPos.x;
-                            targetObj.canvasPosition.y = targetObj.oldCanvasPos.y;
+                            targetObj.relativeFromTablePosition.x = (targetObj.oldCanvasPos.x - targetObj.table.position.x) / targetObj.table.size.width;
+                            targetObj.relativeFromTablePosition.y = (targetObj.oldCanvasPos.y - targetObj.table.position.y) / targetObj.table.size.height;
+
+                            targetObj.canvasPosition.x = targetObj.table.position.x + targetObj.relativeFromTablePosition.x * targetObj.table.size.width;
+                            targetObj.canvasPosition.y = targetObj.table.position.y + targetObj.relativeFromTablePosition.y * targetObj.table.size.height;
                         }
-                        //если в за мгновение до отпускания шахматы закончился ход
+                        //если за мгновение до отпускания шахматы закончился ход(опять на всякий случай)
                         else if (GameState === "ActiveWaiting") {
-                            targetObj.canvasPosition.x = targetObj.oldCanvasPos.x;
-                            targetObj.canvasPosition.y = targetObj.oldCanvasPos.y;
+                            targetObj.relativeFromTablePosition.x = (targetObj.oldCanvasPos.x - targetObj.table.position.x) / targetObj.table.size.width;
+                            targetObj.relativeFromTablePosition.y = (targetObj.oldCanvasPos.y - targetObj.table.position.y) / targetObj.table.size.height;
+
+                            targetObj.canvasPosition.x = targetObj.table.position.x + targetObj.relativeFromTablePosition.x * targetObj.table.size.width;
+                            targetObj.canvasPosition.y = targetObj.table.position.y + targetObj.relativeFromTablePosition.y * targetObj.table.size.height;
                         }
                         //если объект можно вставить в данную ячейку, то удаляем из этой ячейки(через массив в объекте доски) объект фигуры и
                         //меняем координаты текущей фигуры на координаты этой ячейки
                         else {
-                            let index = targetObj.table.arrayOfChess.findIndex(a => a.tablePos.x === tPos.x && a.tablePos.y === tPos.y);
-                            targetObj.table.arrayOfChess[index] = null;
-                            targetObj.table.arrayOfChess = targetObj.table.arrayOfChess.filter(a => a !== null);
+                            let idOfChessToDelete;
+                            for(let pairIdChess of targetObj.table.dictOfChess){
+                                if(pairIdChess[1].tablePos.x === tPos.x && pairIdChess[1].tablePos.y === tPos.y){
+                                    idOfChessToDelete = pairIdChess[0];
+                                    break;
+                                }
+                            }
+                            targetObj.table.dictOfChess.delete(idOfChessToDelete);
 
                             targetObj.tablePos.x = tPos.x;
                             targetObj.tablePos.y = tPos.y;
@@ -505,12 +516,38 @@
                             targetObj.canvasPosition.y = cPos.y;
                             targetObj.oldCanvasPos.x = targetObj.canvasPosition.x;
                             targetObj.oldCanvasPos.y = targetObj.canvasPosition.y;
+
+                            targetObj.relativeFromTablePosition = getRelativeFromTablePosition(targetObj); 
                         }
                     }
                 }
             }
 
-            //WebPart------------------------------------------------------------
+            //Animation------------------------------------------------------------------
+            function updateCanvas() {
+
+                context.clearRect(0, 0, canvas.width, canvas.height)
+
+                table.draw();
+                if (table.update)
+                    table.update();
+
+                for(let pairIdChess of table.dictOfChess){
+                    //отрисовывает объект
+                    pairIdChess[1].draw();
+                    //обновляет состояние объекта если внутри есть соответствующий метод
+                    if(pairIdChess[1].update)
+                        pairIdChess[1].update();
+                }
+
+                context.fillText("Player state: " + GameState, 20, 100);
+                context.fillText("Side: " + PlayerSide, 20, 120);
+                context.fillText("Koef: " + innerHeight + " " + parsedResponse.get("InnerHeight") + " " + HeightKoef, 20, 140);
+
+                requestAnimationFrame(updateCanvas);
+            }
+
+            //WebScoket logic------------------------------------------------------------////////переписать под хештаблицу
 
             let ip = "@ViewBag.Ip";
             let port = "@ViewBag.PORT";
@@ -521,9 +558,10 @@
             let BPlayerState = "PlayerState:WaitBegining<delimiter>";
             let BIsCheckmate = "IsCheckmate:false<delimiter>";
             let BTableState = "TableState:" + buildChessPositions() + "<delimiter>";
-            //let BMoveState = "MoveState:" + MoveState + "<delimiter>";
+            let BInnerHeight = "InnerHeight:" + innerHeight + "<delimiter>";
+            let BInnerWidth = "InnerWidth:" + innerWidth + "<delimiter>";
 
-            let tempString = BSide + BPlayerState + BIsCheckmate + BTableState/* + BMoveState*/;
+            let tempString = BSide + BPlayerState + BIsCheckmate + BTableState + BInnerHeight + BInnerWidth;
             let parsedResponse = parseResponse(tempString);
             let request = buildRequest(parsedResponse);
 
@@ -532,8 +570,6 @@
             };
             socket.onmessage = function (event) {
                 parsedResponse = parseResponse(event.data);
-                //if (parsedResponse.get("MoveState") === "EndMove")
-                //    MoveState = "CurrentMove";
 
                 if (parsedResponse.get("PlayerState") === "ActiveLeading")
                     continueButton.disabled = false;
@@ -544,8 +580,11 @@
 
                 if (GameState === "ActiveWaiting")
                     updateChess(parsedResponse);
-                if (GameState === "ActiveLeading")
+                if (GameState === "ActiveLeading") {
                     parsedResponse.set("TableState", buildChessPositions());
+                    parsedResponse.set("InnerHeight", innerHeight);
+                    parsedResponse.set("InnerWidth", innerWidth);
+                }
 
                 socket.send(buildRequest(parsedResponse) + "\r\n\r\n");
             };
@@ -575,7 +614,14 @@
                 return dict;
             }
 
+            let HeightKoef;
             function updateChess(parsedResponse) {
+                //let WidthtKoef
+                //if (innerHeight < innerWidth) {
+                    HeightKoef = innerHeight / parseInt(parsedResponse.get("InnerHeight"), 10);
+                    //WidthtKoef = Math.round(innerWidth / parseInt(parsedResponse.get("InnerWidth"), 10));
+                //}
+
                 let chessStrings = (parsedResponse.get("TableState")).split(";");
                 if (chessStrings[0] === "" || chessStrings === undefined || chessStrings === null)
                     return;
@@ -583,8 +629,8 @@
                 for (let i = 0; i < table.arrayOfChess.length; i++) {
                     let coordinates = chessStrings[i].match(/[0-9]+\.*[0-9]*/gi);
                     table.arrayOfChess[i].canvasPosition = new Vector(
-                        coordinates[0],
-                        coordinates[1]);
+                        coordinates[0] * HeightKoef,
+                        coordinates[1] * HeightKoef);
                 }
             }
 
@@ -606,17 +652,17 @@
                 result += "PlayerState:" + subRequests.get("PlayerState") + "<delimiter>";
                 result += "IsCheckmate:" + subRequests.get("IsCheckmate") + "<delimiter>";
                 result += "TableState:" + subRequests.get("TableState") + "<delimiter>";
-                //result += "MoveState:" + MoveState + "<delimiter>";
+                result += "InnerHeight:" + subRequests.get("InnerHeight") + "<delimiter>";
+                result += "InnerWidth:" + subRequests.get("InnerWidth") + "<delimiter>";
                 return result;
             }
 
             function updateStates(parsedResponse) {
                 GameState = parsedResponse.get("PlayerState");
                 PlayerSide = parsedResponse.get("Side");
-                //MoveState = parsedResponse.get("MoveState");
             }
 
-            //--------------------------------------------------------------
+            //Click button to continue--------------------------------------
             let continueButton = document.querySelector(".button1");
             continueButton.addEventListener("click", nextMove);
             async function nextMove() {
