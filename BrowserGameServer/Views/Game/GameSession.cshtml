@@ -14,6 +14,7 @@
 <body>
     <canvas></canvas>
     <button class="button1">Continue</button>@*посылает запрос контроллеру на смену очереди хода*@
+    <button class="button2">Surrender</button>@*посылает запрос контроллеру о том что игрок сдается*@
 
     <style>
         Canvas {
@@ -24,10 +25,15 @@
         }
         .botton1{
             height: 50px;
-            width: 100px
+            width: 100px;
+        }
+        .botton2{
+            height: 50px;
+            width: 100px;
+            top: 60px;
         }
     </style>
-    
+
     <script>
         {
             //States----------------------------------------------------------------------
@@ -122,7 +128,7 @@
             class Chess {
                 constructor(table, tPosition, side, id) {
                     this.id = id;
-                    
+
                     this.table = table;
                     this.size = { width: table.size.width / 8, height: table.size.height / 8 };
 
@@ -177,7 +183,7 @@
                         if(Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y)).side !== this.side)
                         return true;
                         else
-                        return false; 
+                        return false;
                         }
                         //двинуться вперед если никого нет
                         else if (shift_x === 0 && shift_y !== 0 &&
@@ -370,9 +376,9 @@
             }
 
             function getRelativeFromTablePosition(chess){
-                let relativeX = (chess.canvasPosition.x - chess.table.position.x) / chess.table.size.width; 
-                let relativeY = (chess.canvasPosition.y - chess.table.position.y) / chess.table.size.height;  
-                return new Vector(relativeX, relativeY); 
+                let relativeX = (chess.canvasPosition.x - chess.table.position.x) / chess.table.size.width;
+                let relativeY = (chess.canvasPosition.y - chess.table.position.y) / chess.table.size.height;
+                return new Vector(relativeX, relativeY);
             }
 
             function getCanvasPosition(chess, tPosition) {
@@ -390,13 +396,15 @@
             let table = new Table();
 
             new Pawn(table, new Vector(3, 1), "White", 0);
-            new Pawn(table, new Vector(3, 2), "White", 1);
-            new Pawn(table, new Vector(3, 6), "Black", 2);
+            new Pawn(table, new Vector(2, 1), "White", 1);
+            new Pawn(table, new Vector(2, 6), "Black", 2);
             new Queen(table, new Vector(3, 4), "Black", 3);
+            //new King(table, new Vector(4, 5), "White", 4);
 
+            let moveCount = 0;
             canvas.addEventListener("mousedown", mouseDown);
             function mouseDown(event) {
-                if(GameState === "ActiveLeading"){
+                if(GameState === "ActiveLeading" && moveCount === 0){
                     let targetObj;//захваченный объект
                     let mousePosInObj;//координаты курсора внутри объекта относительно его верхнего левого угла
 
@@ -404,7 +412,7 @@
                     for(let pairIdChess of table.dictOfChess){
                         if(event.clientX > pairIdChess[1].canvasPosition.x &&
                         event.clientX < pairIdChess[1].canvasPosition.x + pairIdChess[1].size.width &&
-                        event.clientY > pairIdChess[1].canvasPosition.y && 
+                        event.clientY > pairIdChess[1].canvasPosition.y &&
                         event.clientY < pairIdChess[1].canvasPosition.y + pairIdChess[1].size.height){
 
                             targetObj = pairIdChess[1];
@@ -423,9 +431,9 @@
                     }
 
                     function mouseMove(event) {
-                        targetObj.relativeFromTablePosition.x = (event.clientX - targetObj.table.position.x - mousePosInObj.dx) / targetObj.table.size.width; 
+                        targetObj.relativeFromTablePosition.x = (event.clientX - targetObj.table.position.x - mousePosInObj.dx) / targetObj.table.size.width;
                         targetObj.relativeFromTablePosition.y = (event.clientY - targetObj.table.position.y - mousePosInObj.dy) / targetObj.table.size.height;
-       
+
                         targetObj.canvasPosition.x = targetObj.table.position.x + targetObj.relativeFromTablePosition.x * targetObj.table.size.width;
                         targetObj.canvasPosition.y = targetObj.table.position.y + targetObj.relativeFromTablePosition.y * targetObj.table.size.height;
 
@@ -438,7 +446,7 @@
 
                             targetObj.canvasPosition.x = targetObj.table.position.x + targetObj.relativeFromTablePosition.x * targetObj.table.size.width;
                             targetObj.canvasPosition.y = targetObj.table.position.y + targetObj.relativeFromTablePosition.y * targetObj.table.size.height;
-                        } 
+                        }
                     }
 
                     function mouseUp(event) {
@@ -506,7 +514,9 @@
                             targetObj.oldCanvasPos.x = targetObj.canvasPosition.x;
                             targetObj.oldCanvasPos.y = targetObj.canvasPosition.y;
 
-                            targetObj.relativeFromTablePosition = getRelativeFromTablePosition(targetObj); 
+                            targetObj.relativeFromTablePosition = getRelativeFromTablePosition(targetObj);
+
+                            moveCount++;
                         }
                     }
                 }
@@ -530,31 +540,30 @@
                 }
 
                 //TESTS
-                context.fillText("Player state: " + GameState, 20, 100);
-                context.fillText("Side: " + PlayerSide, 20, 120);
-                context.fillText("Response: " + parsedResponse.get("TableState").toString(), 20, 140);
-                if (table.dictOfChess.has(1)) {
-                    context.fillText("Pawn1: " + table.dictOfChess.get(1).relativeFromTablePosition.x +
-                        " " + table.dictOfChess.get(1).relativeFromTablePosition.y, 20, 150);
-                    context.fillText("Pawn1: " + table.dictOfChess.get(1).oldCanvasPos.x +
-                        " " + table.dictOfChess.get(1).oldCanvasPos.y, 20, 160);
-                    context.fillText("Pawn1: " + table.dictOfChess.get(1).canvasPosition.x +
-                        " " + table.dictOfChess.get(1).canvasPosition.y, 20, 170);
-                }
-                if (table.dictOfChess.has(3)) {
-                    context.fillText("Queen1: " + table.dictOfChess.get(3).relativeFromTablePosition.x +
-                        " " + table.dictOfChess.get(3).relativeFromTablePosition.y, 20, 190);
-                    context.fillText("Queen1: " + table.dictOfChess.get(3).oldCanvasPos.x +
-                        " " + table.dictOfChess.get(3).oldCanvasPos.y, 20, 200);
-                    context.fillText("Queen1: " + table.dictOfChess.get(3).canvasPosition.x +
-                        " " + table.dictOfChess.get(3).canvasPosition.y, 20, 210);
-                }
+                context.fillText("Player state: " + GameState, 20, 140);
+                context.fillText("Side: " + PlayerSide, 20, 150);
+                context.fillText("Response: " + parsedResponse.get("TableState").toString(), 20, 160);
+                //if (table.dictOfChess.has(1)) {
+                //    context.fillText("Pawn1: " + table.dictOfChess.get(1).relativeFromTablePosition.x +
+                //        " " + table.dictOfChess.get(1).relativeFromTablePosition.y, 20, 150);
+                //    context.fillText("Pawn1: " + table.dictOfChess.get(1).oldCanvasPos.x +
+                //        " " + table.dictOfChess.get(1).oldCanvasPos.y, 20, 160);
+                //    context.fillText("Pawn1: " + table.dictOfChess.get(1).canvasPosition.x +
+                //        " " + table.dictOfChess.get(1).canvasPosition.y, 20, 170);
+                //}
+                //if (table.dictOfChess.has(3)) {
+                //    context.fillText("Queen1: " + table.dictOfChess.get(3).relativeFromTablePosition.x +
+                //        " " + table.dictOfChess.get(3).relativeFromTablePosition.y, 20, 190);
+                //    context.fillText("Queen1: " + table.dictOfChess.get(3).oldCanvasPos.x +
+                //        " " + table.dictOfChess.get(3).oldCanvasPos.y, 20, 200);
+                //    context.fillText("Queen1: " + table.dictOfChess.get(3).canvasPosition.x +
+                //        " " + table.dictOfChess.get(3).canvasPosition.y, 20, 210);
+                //}
 
                 requestAnimationFrame(updateCanvas);
             }
 
             //WebScoket logic------------------------------------------------------------
-
             let ip = "@ViewBag.Ip";
             let port = "@ViewBag.PORT";
             let socket = new WebSocket("ws://" + ip + ":" + port);
@@ -582,11 +591,25 @@
 
                 updateStates(parsedResponse);
 
-                if (GameState === "ActiveWaiting")
+                if (GameState === "ActiveWaiting") {
+                    moveCount = 0;
                     updateChess(parsedResponse);
-                if (GameState === "ActiveLeading") 
+                }
+                if (GameState === "ActiveLeading")
                     parsedResponse.set("TableState", buildChessPositions());
-                
+                if (GameState === "Loser") {
+                    alert("You lose, gg");
+                    socket.close();
+                }
+                if (GameState === "Winner") {
+                    alert("You win, graz");
+                    socket.close();
+                }
+                if (GameState === "Disconnected") {
+                    alert("You opponent disconnected");
+                    socket.close();
+                }
+
                 socket.send(buildRequest(parsedResponse) + "\r\n\r\n");
             };
             socket.onclose = function (event) {
@@ -683,6 +706,33 @@
                     alert("Ошибка HTTP: " + response.status);
                 }
             }
+
+            //Click button to surrender--------------------------------------
+            let surrenderButton = document.querySelector(".button2");
+            surrenderButton.addEventListener("click", surrender);
+            async function surrender() {
+                let url = "http://" + document.location.host + "/Game/Surrender";
+                let response = await fetch(url);
+
+                if (response.ok) { // если HTTP-статус в диапазоне 200-299
+                    let str = await response.text();
+                } else {
+                    alert("Ошибка HTTP: " + response.status);
+                }
+            }
+
+            window.onclose = function () { socket.close(); } 
+            window.onunload = function () { socket.close(); } 
+
+            //let reloaded = function () { socket.close(); }
+            //window.onload = function () {
+            //    let loaded = sessionStorage.getItem('loaded');
+            //    if (loaded) {
+            //        reloaded();
+            //    } else {
+            //        sessionStorage.setItem('loaded', true);
+            //    }
+            //}
 
             //--------------------------------------------------------------
             updateCanvas();

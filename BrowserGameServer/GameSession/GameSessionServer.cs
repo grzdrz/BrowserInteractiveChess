@@ -29,11 +29,23 @@ namespace BrowserGameServer.GameSession
         }
         public Player FirstPlayer
         {
-            get { return Players[1]; }
+            get 
+            {
+                if (Players.ContainsKey(1))
+                    if (Players[1] != null)
+                        return Players[1];
+                return null;
+            }
         }
         public Player SecondPlayer
         {
-            get { return Players[2]; }
+            get
+            {
+                if (Players.ContainsKey(2))
+                    if (Players[2] != null)
+                        return Players[2];
+                return null;
+            }
         }
 
         public int PORT;
@@ -43,7 +55,6 @@ namespace BrowserGameServer.GameSession
 
         public string CommonDataHub = "";
 
-        //запускаем сервер
         public GameSessionServer()
         {
             while (!IsUnoccupiedPort(PORT = CreateRandomPort())) ;
@@ -82,20 +93,37 @@ namespace BrowserGameServer.GameSession
         public bool SwapActiveState()
         {
             PlayerStates temp;
-            if (FirstPlayer.PlayerStates == PlayerStates.ActiveLeading || FirstPlayer.PlayerStates == PlayerStates.ActiveWaiting &&
-                SecondPlayer.PlayerStates == PlayerStates.ActiveLeading || SecondPlayer.PlayerStates == PlayerStates.ActiveWaiting)
+            if (FirstPlayer.PlayerState == PlayerStates.ActiveLeading || FirstPlayer.PlayerState == PlayerStates.ActiveWaiting &&
+                SecondPlayer.PlayerState == PlayerStates.ActiveLeading || SecondPlayer.PlayerState == PlayerStates.ActiveWaiting)
             {
-                temp = FirstPlayer.PlayerStates;
-                FirstPlayer.PlayerStates = SecondPlayer.PlayerStates;
-                SecondPlayer.PlayerStates = temp;
+                temp = FirstPlayer.PlayerState;
+                FirstPlayer.PlayerState = SecondPlayer.PlayerState;
+                SecondPlayer.PlayerState = temp;
                 return true;
             }
             return false;  
         }
 
-        public void FinalizeSession()/////
-        {
-            
+        static object locker = new object();
+        public int countOfCalls = 0;
+        public void FinalizeSession()
+        {//вызывается из 2х обработчиков веб сокетов по очереди, но срабатывает 1 раз
+            lock (locker)
+            {
+                if (FirstPlayer != null)
+                    FirstPlayer.PlayerState = PlayerStates.Disconnected;
+                if (SecondPlayer != null)
+                    SecondPlayer.PlayerState = PlayerStates.Disconnected;
+
+                if (countOfCalls != 0)
+                    return;
+
+                countOfCalls++;
+                MvcApplication.ActiveGameSessions.Remove(this);
+                this.serverSocket.Close();
+
+                Debug.WriteLine(">>Sessions count: " + MvcApplication.ActiveGameSessions.Count + "<<");
+            }
         }
 
         public int CreateRandomPort()

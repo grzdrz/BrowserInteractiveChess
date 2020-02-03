@@ -12,7 +12,6 @@ namespace BrowserGameServer.GameSession
         WaitBegining,
         ActiveLeading,
         ActiveWaiting,
-        EndMove,
         Winner,
         Loser,
         Disconnected
@@ -28,11 +27,10 @@ namespace BrowserGameServer.GameSession
     {
         public string PlayerLogin;
         public string PlayerAddress;
-        public LinkedList<WebSocketHandler> PlayerHandlers = new LinkedList<WebSocketHandler>();
 
-        public PlayerStates PlayerStates = PlayerStates.WaitBegining;
+        public WebSocketHandler PlayerHandler;
+
+        public PlayerStates PlayerState = PlayerStates.WaitBegining;
         public Side Side;
-
-        public string ChessPositions;
     }
 }

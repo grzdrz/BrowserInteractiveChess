@@ -35,7 +35,8 @@ namespace BrowserGameServer.GameSession
             Stream = new NetworkStream(ClientSocket);
             PlayerOwner = session.Players
                 .FirstOrDefault(a => a.Value.PlayerAddress == ((IPEndPoint)ClientSocket.RemoteEndPoint).Address.ToString()).Value;
-            if (PlayerOwner != null) PlayerOwner.PlayerHandlers.AddLast(this);
+            //if (PlayerOwner != null) PlayerOwner.PlayerHandlers.AddLast(this);
+            if (PlayerOwner != null) PlayerOwner.PlayerHandler = this;
 
             #region "ПРИЕМ ПЕРВОГО ЗАПРОСА"
             //Предпроверка нового клиента
@@ -98,12 +99,12 @@ namespace BrowserGameServer.GameSession
 
             if (PlayerOwner.Side == Side.White)
             {
-                PlayerOwner.PlayerStates = PlayerStates.ActiveLeading;
+                PlayerOwner.PlayerState = PlayerStates.ActiveLeading;
                 SubResponses["Side"] = "White";
             }
             else
             {
-                PlayerOwner.PlayerStates = PlayerStates.ActiveWaiting;
+                PlayerOwner.PlayerState = PlayerStates.ActiveWaiting;
                 SubResponses["Side"] = "Black";
             }
 
@@ -112,7 +113,7 @@ namespace BrowserGameServer.GameSession
                 Request = "";
                 ByteRequest = new byte[1024];
                 #region "ПРИЕМ ЗАПРОСОВ ПО WEB SOCKET"
-                //Ожидаем запрос от сокета 10 сек.
+                //Ожидает 5 секунд запрос от клиента
                 DateTime timerStart = DateTime.Now;
                 DateTime timerCurrent = DateTime.Now;
                 TimeSpan dTime = TimeSpan.Zero;
@@ -124,14 +125,19 @@ namespace BrowserGameServer.GameSession
                     timerCurrent = DateTime.Now;
                     dTime = timerCurrent - timerStart;
                 }
-                if (dTime.TotalMilliseconds > 10000)
+                if (dTime.TotalMilliseconds > 5000)
                 {
-                    PlayerOwner.PlayerStates = PlayerStates.Disconnected;
-                    Session.GameState = GameState.End;
-                    Session.FinalizeSession();//////
+                    //1)Если дисконектится хотябы 1 игрок, то вся сессия уничтожается.
+                    //2)Если от клиента приходит запрос на контроллер с целью установить статус Loser/Winner, то
+                    //обратно клиенту отсылается новый статус и с его стороны уничтожается вебсокет, и соответственно
+                    //на стороне сервера срабатывает данный участок кода.
 
+                    //Session.FirstPlayer.PlayerState = PlayerStates.Disconnected;
+                    //Session.SecondPlayer.PlayerState = PlayerStates.Disconnected;
+                    Session.FinalizeSession();
                     Stream.Close();
-                    ClientSocket.Dispose();
+                    ClientSocket.Close();
+                    Debug.WriteLine(">>" + PlayerOwner.PlayerLogin + " close socket and stream<<");
                     return;
                 }
 
@@ -146,22 +152,21 @@ namespace BrowserGameServer.GameSession
                 #region "Парсинг запроса"
                 ParsedWSRequest = ParseWebSocketRequest(Request);
 
-                if (ParsedWSRequest["IsCheckmate"] == "true")
-                {
-                    Session.GameState = GameState.End;
-                    PlayerOwner.PlayerStates = PlayerStates.Winner;
-                    Session.FinalizeSession();
-                }
-
+                if (PlayerOwner.PlayerState == PlayerStates.Disconnected)
+                    SubResponses["PlayerState"] = "Disconnected";
+                if (PlayerOwner.PlayerState == PlayerStates.Loser)
+                    SubResponses["PlayerState"] = "Loser";
+                if (PlayerOwner.PlayerState == PlayerStates.Winner)
+                    SubResponses["PlayerState"] = "Winner";
                 if (Session.IsGameBeginning())
                 {
                     //чья очередь ходить
-                    if (PlayerOwner.PlayerStates == PlayerStates.ActiveLeading)
+                    if (PlayerOwner.PlayerState == PlayerStates.ActiveLeading)
                     {
                         SubResponses["PlayerState"] = "ActiveLeading";
                         Session.CommonDataHub = ParsedWSRequest["TableState"];
                     }
-                    if (PlayerOwner.PlayerStates == PlayerStates.ActiveWaiting)
+                    if (PlayerOwner.PlayerState == PlayerStates.ActiveWaiting)
                     {
                         SubResponses["PlayerState"] = "ActiveWaiting";
                         SubResponses["TableState"] = Session.CommonDataHub;

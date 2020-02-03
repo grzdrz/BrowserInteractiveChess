@@ -28,15 +28,30 @@ namespace BrowserGameServer.Controllers
                 currentClientIPAddress = MvcApplication.GetLocalIPAddress();
             }
 
-             //Поиск сессии с одним игроком, который при этом не является текущим клиентом 
-            var freeSessions = MvcApplication.ActiveGameSessions.Where(a => a.PlayersCount < a.MaxPlayersCount);
-            GameSessionServer freeSession;
-            freeSession = freeSessions.FirstOrDefault(a =>
+            GameSessionServer freeSession = null;//////////
+            foreach (var e in MvcApplication.ActiveGameSessions)
             {
-                if (a.FirstPlayer is null) return false;
-                else if (a.FirstPlayer.PlayerLogin == currentClientLogin) return false;
-                else return true;
-            });
+                if (e.FirstPlayer != null)
+                    if (e.FirstPlayer.PlayerAddress == currentClientIPAddress)
+                    {
+                        e.FinalizeSession();
+                        break;
+                    }
+                if(e.SecondPlayer != null)
+                    if (e.SecondPlayer.PlayerAddress == currentClientIPAddress)
+                    {
+                        e.FinalizeSession();
+                        break;
+                    }
+            }
+            foreach (var e in MvcApplication.ActiveGameSessions)
+            {
+                if (e.PlayersCount < 2)
+                {
+                    freeSession = e;
+                    break;
+                }
+            }
 
             if (freeSession is null)
             {
@@ -95,5 +110,35 @@ namespace BrowserGameServer.Controllers
             else return "notok";////
         }
 
+        public string Surrender()
+        {
+            var currentClientIPAddress = HttpContext.Request.UserHostAddress;
+            if (currentClientIPAddress == "::1")
+            {
+                currentClientIPAddress = MvcApplication.GetLocalIPAddress();
+            }
+
+            var tempSession = MvcApplication.ActiveGameSessions.FirstOrDefault(a =>
+            a.Players.FirstOrDefault(b => b.Value.PlayerAddress == currentClientIPAddress).Value != null);
+            
+            if (tempSession != null)
+            {
+                if (tempSession.FirstPlayer.PlayerAddress == currentClientIPAddress)
+                {
+                    tempSession.FirstPlayer.PlayerState = PlayerStates.Loser;
+                    tempSession.SecondPlayer.PlayerState = PlayerStates.Winner;
+                }
+                else
+                {
+                    tempSession.FirstPlayer.PlayerState = PlayerStates.Winner;
+                    tempSession.SecondPlayer.PlayerState = PlayerStates.Loser;
+                }
+            }
+
+            return "";
+        }
+
     }
 }
+//Концепт разрыва соединения/окончания сессии построен на факте того, что под каждого клиента создается единственный TCP сокет
+//для рукопожатия по http и обмена фреймами по websocket
