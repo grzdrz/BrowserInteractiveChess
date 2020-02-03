@@ -11,7 +11,6 @@ namespace BrowserGameServer.Controllers
 {
     public class GameController : Controller
     {
-        // GET: Game
         public ActionResult MainMenu()
         {
             return View();
@@ -74,6 +73,8 @@ namespace BrowserGameServer.Controllers
             return View();
         }
 
+        //!!!если не закрыта сессия, то у игроков которые были в ней после перезагрузки страницы с игрой 
+        //не сработает корректно этот контроллер!!!!!!!
         public string NextMove()
         {
             var currentClientIPAddress = HttpContext.Request.UserHostAddress;
@@ -90,8 +91,8 @@ namespace BrowserGameServer.Controllers
                 result = tempSession.SwapActiveState();
             }
 
-            if (result)return "ok";
-            else return "notok";
+            if (result)return "ok";////
+            else return "notok";////
         }
 
     }

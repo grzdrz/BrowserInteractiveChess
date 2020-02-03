@@ -19,9 +19,6 @@ namespace BrowserGameServer.GameSession
     {
         GameSessionServer Session;
         Player PlayerOwner;
-        //Player PlayerEnemy;
-
-        //int streamTimer = 0;//таймер ожидания нового запроса
 
         public Socket ClientSocket;
         public NetworkStream Stream;
@@ -98,8 +95,6 @@ namespace BrowserGameServer.GameSession
             SubResponses.Add("PlayerState", "WaitBegining");
             SubResponses.Add("IsCheckmate", "false");
             SubResponses.Add("TableState", "");
-            SubResponses.Add("InnerHeight", "");
-            SubResponses.Add("InnerWidth", "");
 
             if (PlayerOwner.Side == Side.White)
             {
@@ -111,7 +106,7 @@ namespace BrowserGameServer.GameSession
                 PlayerOwner.PlayerStates = PlayerStates.ActiveWaiting;
                 SubResponses["Side"] = "Black";
             }
-            //Session.MoveStartTime = DateTime.Now;
+
             while (true)
             {
                 Request = "";
@@ -142,14 +137,13 @@ namespace BrowserGameServer.GameSession
 
                 Stream.Read(ByteRequest, 0, ByteRequest.Length);
                 Request = DecodeWebSocketMessage(ByteRequest);
+                //по веб сокету приходят строки с '\r\n\r\n' в конце
+                //отрезаем мусорную часть строки
+                Request = Request.Split(new string[] { "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries)[0];
                 #endregion
 
 
                 #region "Парсинг запроса"
-                //по веб сокету приходят строки с '\r\n\r\n' в конце
-                //отрезаем мусорную часть строки
-                Request = Request.Split(new string[] { "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries)[0];
-
                 ParsedWSRequest = ParseWebSocketRequest(Request);
 
                 if (ParsedWSRequest["IsCheckmate"] == "true")
@@ -164,17 +158,11 @@ namespace BrowserGameServer.GameSession
                     //чья очередь ходить
                     if (PlayerOwner.PlayerStates == PlayerStates.ActiveLeading)
                     {
-                        this.Session.CurInnerHeight = ParsedWSRequest["InnerHeight"];
-                        this.Session.CurInnerWidth = ParsedWSRequest["InnerWidth"];
-
                         SubResponses["PlayerState"] = "ActiveLeading";
                         Session.CommonDataHub = ParsedWSRequest["TableState"];
                     }
                     if (PlayerOwner.PlayerStates == PlayerStates.ActiveWaiting)
                     {
-                        SubResponses["InnerHeight"] = this.Session.CurInnerHeight;
-                        SubResponses["InnerWidth"] = this.Session.CurInnerWidth;
-
                         SubResponses["PlayerState"] = "ActiveWaiting";
                         SubResponses["TableState"] = Session.CommonDataHub;
                     }
@@ -370,10 +358,9 @@ namespace BrowserGameServer.GameSession
         //Side:...<delimiter>                                                   сервер --> клиенты
         //PlayerState:...<delimiter>                                            сервер <--> клиенты
         //IsCheckmate:...<delimiter>                                            сервер <-- клиенты
-        //TableState:(x1,y1);(x2,y2);...<delimiter>                             сервер <--> клиенты
-        //...
+        //TableState:(id, x1, y1);(id, x2, y2);...<delimiter>                   сервер <--> клиенты
 
-        //последняя строка это позиции шахмат в порядке их расположения в массиве отправителя, 
-        //присланные клиентом 1, которые нужно передать клиенту 2
+        //последняя строка это id конкретной фигуры и ее относительные координаты(относительно положения доски на холсте)
+        //относительные координаты нужны для синхронизации координат игроков с разными разрешениями экрана
     }
 }

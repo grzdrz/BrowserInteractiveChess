@@ -42,8 +42,6 @@ namespace BrowserGameServer.GameSession
         Socket serverSocket;
 
         public string CommonDataHub = "";
-        public string CurInnerHeight = "";
-        public string CurInnerWidth = "";
 
         //запускаем сервер
         public GameSessionServer()
@@ -94,21 +92,6 @@ namespace BrowserGameServer.GameSession
             }
             return false;  
         }
-
-        //public DateTime MoveStartTime = DateTime.Now;
-        //public DateTime MoveCurrentTime = DateTime.Now;
-        //public TimeSpan MoveDTime = TimeSpan.Zero;
-        //public int CheckMoveTime(double minutes)
-        //{
-        //    MoveCurrentTime = DateTime.Now;
-        //    MoveDTime = MoveCurrentTime - MoveStartTime;
-        //    //if (MoveDTime.TotalMilliseconds > (1000d * 60d * minutes))
-        //    //{
-        //    //    //MoveStartTime = DateTime.Now;
-        //    //    return true;
-        //    //}
-        //    return (int)Math.Truncate((double)(MoveDTime.Milliseconds) / (1000d * 60d * minutes));
-        //}
 
         public void FinalizeSession()/////
         {

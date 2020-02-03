@@ -173,8 +173,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="ChessWeb\Chessboard.png" />
-    <Content Include="ChessWeb\ChessClasses.js" />
-    <Content Include="ChessWeb\ChessScript1.js" />
     <Content Include="ChessWeb\KingB.png" />
     <Content Include="ChessWeb\KingW.png" />
     <Content Include="ChessWeb\Peshka.png" />

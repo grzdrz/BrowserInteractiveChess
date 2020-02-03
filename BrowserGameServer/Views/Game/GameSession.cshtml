@@ -12,24 +12,13 @@
     <title>GameSession</title>
 </head>
 <body>
-
-    @*<div class="testDiv">
-                BlaBlaBla
-            </div>
-        <img src="GetImage/Chessboard.png"/>
-        <style>
-            img[src="GetImage/Chessboard.png"] {
-                display: none;
-            }
-        </style>*@
-
     <canvas></canvas>
-    <button class="button1">Continue</button>
+    <button class="button1">Continue</button>@*посылает запрос контроллеру на смену очереди хода*@
 
     <style>
         Canvas {
             position: absolute;
-            z-index: -1;
+            z-index: -1;@*для вывода элементов html над холстом*@
             top: 0px;
             left: 0px;
         }
@@ -505,10 +494,10 @@
                             for(let pairIdChess of targetObj.table.dictOfChess){
                                 if(pairIdChess[1].tablePos.x === tPos.x && pairIdChess[1].tablePos.y === tPos.y){
                                     idOfChessToDelete = pairIdChess[0];
+                                    targetObj.table.dictOfChess.delete(idOfChessToDelete);
                                     break;
                                 }
                             }
-                            targetObj.table.dictOfChess.delete(idOfChessToDelete);
 
                             targetObj.tablePos.x = tPos.x;
                             targetObj.tablePos.y = tPos.y;
@@ -540,28 +529,43 @@
                         pairIdChess[1].update();
                 }
 
+                //TESTS
                 context.fillText("Player state: " + GameState, 20, 100);
                 context.fillText("Side: " + PlayerSide, 20, 120);
-                context.fillText("Koef: " + innerHeight + " " + parsedResponse.get("InnerHeight") + " " + HeightKoef, 20, 140);
+                context.fillText("Response: " + parsedResponse.get("TableState").toString(), 20, 140);
+                if (table.dictOfChess.has(1)) {
+                    context.fillText("Pawn1: " + table.dictOfChess.get(1).relativeFromTablePosition.x +
+                        " " + table.dictOfChess.get(1).relativeFromTablePosition.y, 20, 150);
+                    context.fillText("Pawn1: " + table.dictOfChess.get(1).oldCanvasPos.x +
+                        " " + table.dictOfChess.get(1).oldCanvasPos.y, 20, 160);
+                    context.fillText("Pawn1: " + table.dictOfChess.get(1).canvasPosition.x +
+                        " " + table.dictOfChess.get(1).canvasPosition.y, 20, 170);
+                }
+                if (table.dictOfChess.has(3)) {
+                    context.fillText("Queen1: " + table.dictOfChess.get(3).relativeFromTablePosition.x +
+                        " " + table.dictOfChess.get(3).relativeFromTablePosition.y, 20, 190);
+                    context.fillText("Queen1: " + table.dictOfChess.get(3).oldCanvasPos.x +
+                        " " + table.dictOfChess.get(3).oldCanvasPos.y, 20, 200);
+                    context.fillText("Queen1: " + table.dictOfChess.get(3).canvasPosition.x +
+                        " " + table.dictOfChess.get(3).canvasPosition.y, 20, 210);
+                }
 
                 requestAnimationFrame(updateCanvas);
             }
 
-            //WebScoket logic------------------------------------------------------------////////переписать под хештаблицу
+            //WebScoket logic------------------------------------------------------------
 
             let ip = "@ViewBag.Ip";
             let port = "@ViewBag.PORT";
             let socket = new WebSocket("ws://" + ip + ":" + port);
 
 
-            let BSide = "Side:" + PlayerSide + "<delimiter>";////////
+            let BSide = "Side:" + PlayerSide + "<delimiter>";
             let BPlayerState = "PlayerState:WaitBegining<delimiter>";
             let BIsCheckmate = "IsCheckmate:false<delimiter>";
             let BTableState = "TableState:" + buildChessPositions() + "<delimiter>";
-            let BInnerHeight = "InnerHeight:" + innerHeight + "<delimiter>";
-            let BInnerWidth = "InnerWidth:" + innerWidth + "<delimiter>";
 
-            let tempString = BSide + BPlayerState + BIsCheckmate + BTableState + BInnerHeight + BInnerWidth;
+            let tempString = BSide + BPlayerState + BIsCheckmate + BTableState;
             let parsedResponse = parseResponse(tempString);
             let request = buildRequest(parsedResponse);
 
@@ -580,12 +584,9 @@
 
                 if (GameState === "ActiveWaiting")
                     updateChess(parsedResponse);
-                if (GameState === "ActiveLeading") {
+                if (GameState === "ActiveLeading") 
                     parsedResponse.set("TableState", buildChessPositions());
-                    parsedResponse.set("InnerHeight", innerHeight);
-                    parsedResponse.set("InnerWidth", innerWidth);
-                }
-
+                
                 socket.send(buildRequest(parsedResponse) + "\r\n\r\n");
             };
             socket.onclose = function (event) {
@@ -602,8 +603,8 @@
                 alert(`[error] ${error.message}`);
             };
 
-
             function parseResponse(response) {
+                //Header1:blabla1<delimiter>Header2:blabla2<delimiter>...<delimiter> -> (Header1:blabla1)(Header2:blabla2)...
                 let tempReq = response.split("<delimiter>");
                 let dict = new Map();
                 let temp1 = null;
@@ -614,34 +615,43 @@
                 return dict;
             }
 
-            let HeightKoef;
             function updateChess(parsedResponse) {
-                //let WidthtKoef
-                //if (innerHeight < innerWidth) {
-                    HeightKoef = innerHeight / parseInt(parsedResponse.get("InnerHeight"), 10);
-                    //WidthtKoef = Math.round(innerWidth / parseInt(parsedResponse.get("InnerWidth"), 10));
-                //}
-
                 let chessStrings = (parsedResponse.get("TableState")).split(";");
-                if (chessStrings[0] === "" || chessStrings === undefined || chessStrings === null)
-                    return;
+                chessStrings.splice(chessStrings.length - 1, 1);
 
-                for (let i = 0; i < table.arrayOfChess.length; i++) {
-                    let coordinates = chessStrings[i].match(/[0-9]+\.*[0-9]*/gi);
-                    table.arrayOfChess[i].canvasPosition = new Vector(
-                        coordinates[0] * HeightKoef,
-                        coordinates[1] * HeightKoef);
+                let dictIdChessRelCoord = new Map();//(id: {relX, relY})
+                for (let e of chessStrings) {
+                    let IdXY = e.match(/[0-9]+\.*[0-9]*/gi);
+                    dictIdChessRelCoord.set(Number(IdXY[0]), {
+                        relX: Number(IdXY[1]),
+                        relY: Number(IdXY[2])});
+                }
+
+                for (let pairIdChess of table.dictOfChess) {
+                    if (!dictIdChessRelCoord.has(pairIdChess[0])) {
+                        table.dictOfChess.delete(pairIdChess[0]);
+                    }
+                    else {
+                        pairIdChess[1].relativeFromTablePosition.x = dictIdChessRelCoord.get(pairIdChess[0]).relX;
+                        pairIdChess[1].relativeFromTablePosition.y = dictIdChessRelCoord.get(pairIdChess[0]).relY;
+
+                        pairIdChess[1].canvasPosition.x = pairIdChess[1].table.position.x + pairIdChess[1].relativeFromTablePosition.x * pairIdChess[1].table.size.width;
+                        pairIdChess[1].canvasPosition.y = pairIdChess[1].table.position.y + pairIdChess[1].relativeFromTablePosition.y * pairIdChess[1].table.size.height;
+
+                        pairIdChess[1].oldCanvasPos.x = pairIdChess[1].canvasPosition.x;
+                        pairIdChess[1].oldCanvasPos.y = pairIdChess[1].canvasPosition.y;
+
+                        pairIdChess[1].tablePos.x = Math.floor((pairIdChess[1].canvasPosition.x - pairIdChess[1].table.position.x) / pairIdChess[1].size.width);
+                        pairIdChess[1].tablePos.y = Math.floor((pairIdChess[1].canvasPosition.y - pairIdChess[1].table.position.y) / pairIdChess[1].size.height);
+                    }
                 }
             }
 
             function buildChessPositions() {
                 let result = "";
-                for (let i = 0; i < table.arrayOfChess.length; i++) {
-                    let temp = table.arrayOfChess[i].canvasPosition;
-                    if (i === table.arrayOfChess.length - 1)
-                        result += "(" + temp.x.toString() + "," + temp.y.toString() + ")";
-                    else
-                        result += "(" + temp.x.toString() + "," + temp.y.toString() + ");";
+                for (let pairIdChess of table.dictOfChess) {
+                    let relCoordinates = pairIdChess[1].relativeFromTablePosition;
+                    result += "(" + pairIdChess[0] + "," + relCoordinates.x.toString() + "," + relCoordinates.y.toString() + ");";
                 }
                 return result;
             }
@@ -652,8 +662,6 @@
                 result += "PlayerState:" + subRequests.get("PlayerState") + "<delimiter>";
                 result += "IsCheckmate:" + subRequests.get("IsCheckmate") + "<delimiter>";
                 result += "TableState:" + subRequests.get("TableState") + "<delimiter>";
-                result += "InnerHeight:" + subRequests.get("InnerHeight") + "<delimiter>";
-                result += "InnerWidth:" + subRequests.get("InnerWidth") + "<delimiter>";
                 return result;
             }
 
@@ -677,9 +685,8 @@
             }
 
             //--------------------------------------------------------------
-
             updateCanvas();
-        }//присабачить кнопку конца хода с привязкой к состоянию, вместо таймера
+        }
     </script>
 </body>
 </html>

@@ -34,19 +34,5 @@ namespace BrowserGameServer.GameSession
         public Side Side;
 
         public string ChessPositions;
-
-        public Player(/*WebSocketHandler wbHandler, Socket ClientSocket*/)
-        {
-            //WbHandler = wbHandler;
-            //ClientSocket = ClientSocket;
-        }
-
-        //public void SwapActiveStates()
-        //{
-        //    if (PlayerStates == PlayerStates.ActiveLeading)
-        //        PlayerStates = PlayerStates.ActiveWaiting;
-        //    else if (PlayerStates == PlayerStates.ActiveWaiting)
-        //        PlayerStates = PlayerStates.ActiveLeading;
-        //}
     }
 }
