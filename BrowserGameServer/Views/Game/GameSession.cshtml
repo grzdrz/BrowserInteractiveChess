@@ -170,28 +170,28 @@
                     }
                 }
 
-                    allowedShift(shift_x, shift_y){
-                        //если пешка никуда не ходит
-                        if (shift_x === 0 && shift_y === 0)
+                allowedShift(shift_x, shift_y) {
+                    //если пешка никуда не ходит
+                    if (shift_x === 0 && shift_y === 0)
                         return true;
-                        //ходы в бок, назад, либо вперед более чем на 1 клетку недопустимы
-                        if ((Math.abs(shift_x) > 0 && shift_y === 0) || shift_y > 1 || shift_y < 0)
+                    //ходы в бок, назад, либо вперед более чем на 1 клетку недопустимы
+                    if ((Math.abs(shift_x) > 0 && shift_y === 0) || shift_y > 1 || shift_y < 0)
                         return false;
-                        //двинуться по диагонали если есть фигура и она враг
-                        else if (shift_x !== 0 && shift_y !== 0 &&
-                        Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y))){
-                        if(Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y)).side !== this.side)
-                        return true;
+                    //двинуться по диагонали если есть фигура и она враг
+                    else if (shift_x !== 0 && shift_y !== 0 &&
+                        Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y))) {
+                        if (Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y)).side !== this.side)
+                            return true;
                         else
-                        return false;
-                        }
-                        //двинуться вперед если никого нет
-                        else if (shift_x === 0 && shift_y !== 0 &&
-                        !(Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + shift_y)))){
-                        return true;
-                        }
-                        else return false;
+                            return false;
                     }
+                    //двинуться вперед если никого нет
+                    else if (shift_x === 0 && shift_y !== 0 &&
+                        !(Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + shift_y)))) {
+                        return true;
+                    }
+                    else return false;
+                }
             }
 
             class Queen extends Chess {
@@ -375,6 +375,22 @@
                 }
             }
 
+            class King extends Chess {
+                constructor(table, tPosition, side, id) {
+                    super(table, tPosition, side, id);
+                    if (side === "Black") {
+                        this.img.src = "/ChessWeb/KingB.png";
+                    }
+                    else {
+                        this.img.src = "/ChessWeb/KingW.png";
+                    }
+                }
+
+                allowedShift(shift_x, shift_y){
+                    return false;//////
+                }
+            }
+
             function getRelativeFromTablePosition(chess){
                 let relativeX = (chess.canvasPosition.x - chess.table.position.x) / chess.table.size.width;
                 let relativeY = (chess.canvasPosition.y - chess.table.position.y) / chess.table.size.height;
@@ -395,13 +411,15 @@
 
             let table = new Table();
 
-            new Pawn(table, new Vector(3, 1), "White", 0);
-            new Pawn(table, new Vector(2, 1), "White", 1);
-            new Pawn(table, new Vector(2, 6), "Black", 2);
-            new Queen(table, new Vector(3, 4), "Black", 3);
-            //new King(table, new Vector(4, 5), "White", 4);
+            new King(table, new Vector(3, 5), "White", 0);
+            new King(table, new Vector(3, 6), "Black", 1);
+            new Pawn(table, new Vector(3, 1), "White", 2);
+            new Pawn(table, new Vector(2, 1), "White", 3);
+            new Pawn(table, new Vector(2, 6), "Black", 4);
+            new Queen(table, new Vector(3, 4), "Black", 5);
 
             let moveCount = 0;
+            let IsKingDead = false;
             canvas.addEventListener("mousedown", mouseDown);
             function mouseDown(event) {
                 if(GameState === "ActiveLeading" && moveCount === 0){
@@ -500,7 +518,10 @@
                         else {
                             let idOfChessToDelete;
                             for(let pairIdChess of targetObj.table.dictOfChess){
-                                if(pairIdChess[1].tablePos.x === tPos.x && pairIdChess[1].tablePos.y === tPos.y){
+                                if (pairIdChess[1].tablePos.x === tPos.x && pairIdChess[1].tablePos.y === tPos.y) {
+                                    if (pairIdChess[0] === 0 || pairIdChess[0] === 1) {
+                                        IsKingDead = true;
+                                    }
                                     idOfChessToDelete = pairIdChess[0];
                                     targetObj.table.dictOfChess.delete(idOfChessToDelete);
                                     break;
@@ -524,7 +545,6 @@
 
             //Animation------------------------------------------------------------------
             function updateCanvas() {
-
                 context.clearRect(0, 0, canvas.width, canvas.height)
 
                 table.draw();
@@ -594,6 +614,14 @@
                 if (GameState === "ActiveWaiting") {
                     moveCount = 0;
                     updateChess(parsedResponse);
+
+                    //проверка жив ли король
+                    let t1 = table.dictOfChess.get(0);
+                    let t2 = table.dictOfChess.get(1);
+                    if ((PlayerSide === "White" && !t1) || (PlayerSide === "Black" && !t2)) {
+                        IsKingDead = true;
+                        surrender();
+                    }
                 }
                 if (GameState === "ActiveLeading")
                     parsedResponse.set("TableState", buildChessPositions());
@@ -697,6 +725,7 @@
             let continueButton = document.querySelector(".button1");
             continueButton.addEventListener("click", nextMove);
             async function nextMove() {
+                if (IsKingDead) return;
                 let url = "http://" + document.location.host + "/Game/NextMove";
                 let response = await fetch(url);
 
@@ -723,16 +752,6 @@
 
             window.onclose = function () { socket.close(); } 
             window.onunload = function () { socket.close(); } 
-
-            //let reloaded = function () { socket.close(); }
-            //window.onload = function () {
-            //    let loaded = sessionStorage.getItem('loaded');
-            //    if (loaded) {
-            //        reloaded();
-            //    } else {
-            //        sessionStorage.setItem('loaded', true);
-            //    }
-            //}
 
             //--------------------------------------------------------------
             updateCanvas();

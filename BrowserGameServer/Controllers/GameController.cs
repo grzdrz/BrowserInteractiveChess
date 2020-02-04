@@ -28,7 +28,7 @@ namespace BrowserGameServer.Controllers
                 currentClientIPAddress = MvcApplication.GetLocalIPAddress();
             }
 
-            GameSessionServer freeSession = null;//////////
+            GameSessionServer freeSession = null;
             foreach (var e in MvcApplication.ActiveGameSessions)
             {
                 if (e.FirstPlayer != null)
@@ -44,11 +44,11 @@ namespace BrowserGameServer.Controllers
                         break;
                     }
             }
-            foreach (var e in MvcApplication.ActiveGameSessions)
+            foreach (var ee in MvcApplication.ActiveGameSessions)
             {
-                if (e.PlayersCount < 2)
+                if (ee.PlayersCount < 2)
                 {
-                    freeSession = e;
+                    freeSession = ee;
                     break;
                 }
             }
@@ -88,8 +88,6 @@ namespace BrowserGameServer.Controllers
             return View();
         }
 
-        //!!!если не закрыта сессия, то у игроков которые были в ней после перезагрузки страницы с игрой 
-        //не сработает корректно этот контроллер!!!!!!!
         public string NextMove()
         {
             var currentClientIPAddress = HttpContext.Request.UserHostAddress;

@@ -25,7 +25,7 @@ namespace BrowserGameServer.GameSession
 
         public string Request = "";
         public byte[] ByteRequest = new byte[1024];
-        public byte[] ByteResponse = new byte[1] { 0 };//дефолтное значение, чтоб на пустые запросы Stream.Write не жаловался
+        public byte[] ByteResponse = new byte[1] { 0 };
         public Dictionary<string, string[]> ParsedRequest = new Dictionary<string, string[]>();
 
         public WebSocketHandler(Socket socket, GameSessionServer session)
@@ -35,7 +35,6 @@ namespace BrowserGameServer.GameSession
             Stream = new NetworkStream(ClientSocket);
             PlayerOwner = session.Players
                 .FirstOrDefault(a => a.Value.PlayerAddress == ((IPEndPoint)ClientSocket.RemoteEndPoint).Address.ToString()).Value;
-            //if (PlayerOwner != null) PlayerOwner.PlayerHandlers.AddLast(this);
             if (PlayerOwner != null) PlayerOwner.PlayerHandler = this;
 
             #region "ПРИЕМ ПЕРВОГО ЗАПРОСА"
@@ -94,7 +93,6 @@ namespace BrowserGameServer.GameSession
         {
             SubResponses.Add("Side", "");
             SubResponses.Add("PlayerState", "WaitBegining");
-            SubResponses.Add("IsCheckmate", "false");
             SubResponses.Add("TableState", "");
 
             if (PlayerOwner.Side == Side.White)
@@ -121,7 +119,6 @@ namespace BrowserGameServer.GameSession
                 {
                     if (dTime.TotalMilliseconds > 10000)
                         break;
-                    //Thread.Sleep(1 / 60);
                     timerCurrent = DateTime.Now;
                     dTime = timerCurrent - timerStart;
                 }
@@ -132,8 +129,6 @@ namespace BrowserGameServer.GameSession
                     //обратно клиенту отсылается новый статус и с его стороны уничтожается вебсокет, и соответственно
                     //на стороне сервера срабатывает данный участок кода.
 
-                    //Session.FirstPlayer.PlayerState = PlayerStates.Disconnected;
-                    //Session.SecondPlayer.PlayerState = PlayerStates.Disconnected;
                     Session.FinalizeSession();
                     Stream.Close();
                     ClientSocket.Close();
@@ -362,7 +357,6 @@ namespace BrowserGameServer.GameSession
         //Формат данных общения с клиентом:
         //Side:...<delimiter>                                                   сервер --> клиенты
         //PlayerState:...<delimiter>                                            сервер <--> клиенты
-        //IsCheckmate:...<delimiter>                                            сервер <-- клиенты
         //TableState:(id, x1, y1);(id, x2, y2);...<delimiter>                   сервер <--> клиенты
 
         //последняя строка это id конкретной фигуры и ее относительные координаты(относительно положения доски на холсте)
