@@ -172,9 +172,15 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="ChessWeb\BishopB.png" />
+    <Content Include="ChessWeb\BishopW.png" />
+    <Content Include="ChessWeb\CastleB.png" />
+    <Content Include="ChessWeb\CastleW.png" />
     <Content Include="ChessWeb\Chessboard.png" />
     <Content Include="ChessWeb\KingB.png" />
     <Content Include="ChessWeb\KingW.png" />
+    <Content Include="ChessWeb\KnightB.png" />
+    <Content Include="ChessWeb\KnightW.png" />
     <Content Include="ChessWeb\Peshka.png" />
     <Content Include="ChessWeb\PeshkaB.png" />
     <Content Include="ChessWeb\PeshkaW.png" />

@@ -118,8 +118,8 @@
                 update() { }
 
                 addChess(chess) {
-                    for(let e of this.dictOfChess){
-                        if(e[1].id === chess.id) return;
+                    for (let e of this.dictOfChess) {
+                        if (e[1].id === chess.id) return;
                     }
                     this.dictOfChess.set(chess.id, chess);
                 }
@@ -171,14 +171,21 @@
                 }
 
                 allowedShift(shift_x, shift_y) {
-                    //если пешка никуда не ходит
                     if (shift_x === 0 && shift_y === 0)
                         return true;
-                    //ходы в бок, назад, либо вперед более чем на 1 клетку недопустимы
-                    if ((Math.abs(shift_x) > 0 && shift_y === 0) || shift_y > 1 || shift_y < 0)
+
+                    //ходы в бок, либо вперед более чем на 1 клетку недопустимы
+                    if ((Math.abs(shift_x) > 0 && shift_y === 0) || Math.abs(shift_y) > 1)
                         return false;
+                    if (this.side === "White") {
+                        if (shift_y < 0) return false;//белые расположены сверху и ходят только вниз
+                    }
+                    if (this.side === "Black") {
+                        if (shift_y > 0) return false;//черные расположены снизу и ходят только вверх
+                    }
+
                     //двинуться по диагонали если есть фигура и она враг
-                    else if (shift_x !== 0 && shift_y !== 0 &&
+                    if (shift_x !== 0 && shift_y !== 0 &&
                         Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y))) {
                         if (Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y)).side !== this.side)
                             return true;
@@ -190,7 +197,7 @@
                         !(Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + shift_y)))) {
                         return true;
                     }
-                    else return false;
+                    return false;
                 }
             }
 
@@ -206,7 +213,9 @@
                 }
 
                 allowedShift(shift_x, shift_y) {
-                    //если ход не по диагонали
+                    let tempChess;
+
+                    //можно ходить по диагонали и по прямой 
                     if ((Math.abs(shift_x) !== Math.abs(shift_y)) && (shift_x !== 0 && shift_y !== 0))
                         return false;
                     if (shift_x === 0 && shift_y === 0)
@@ -217,159 +226,159 @@
                     let move_distance_down = 0;
                     if (shift_y > 0 && shift_x === 0) {
                         for (let i = this.tablePos.y; i < 8 && move_distance_down < Math.abs(shift_y); i++) {
-                            move_distance_down += 1;
-                            if (Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down))) {
-                                //move_distance_down--;
+                            move_distance_down++;
+                            tempChess = Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down));
+                            if (tempChess) {
                                 break;
                             }
                         }
-                        if (shift_y <= move_distance_down &&
-                            !Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down))) {
-                            return true;
+                        //1)если на пути встретилась другая фигура и запрашиваемое смещение(shift_y) больше допустимого смещения(move_distance_down)(прыгнуть за другую фигуру) => false
+                        //2)если на пути встретилась другая фигура и з/смещение равно д/смещению(прыгнуть на фигуру или перед ней)
+                        // 2.1)на другую фигуру другого цвета => true
+                        // 2.2)на другую фигуру своего цвета => false
+                        // 2.3)на пустую клетку => true;
+                        //3)если на пути нет других фигур(з/смещение всегда равно д/смещению) => true;
+                        if (shift_y <= move_distance_down) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
                         }
-                        else if (shift_y <= move_distance_down &&
-                            Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down)).side !== this.side)
-                            return true;
                     }
 
                     //анализ маршрута вверх от движемой фигуры
                     let move_distance_up = 0;
                     if (shift_y < 0 && shift_x === 0) {
                         for (let i = this.tablePos.y; i > 0 && move_distance_up < Math.abs(shift_y); i--) {
-                            move_distance_up += 1;
-                            if (Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up))) {
-                                //move_distance_up--;
+                            move_distance_up++;
+                            tempChess = Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up));
+                            if (tempChess) {
                                 break;
                             }
                         }
-                        if (Math.abs(shift_y) <= move_distance_up &&
-                            !Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up))) {
-                            return true;
+                        if (Math.abs(shift_y) <= move_distance_up) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
                         }
-                        else if (Math.abs(shift_y) <= move_distance_up &&
-                            Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up)).side !== this.side)
-                            return true;
                     }
-                    /*
-                            //анализ маршрута вправо от движемой фигуры
-                            int move_distance_right = 0;
-                            if (shift_y > 0){
-                                while (this.y + move_distance_right < this.chess_Board.GetLength(1) - 1){
-                                    move_distance_right++;
-                                    if (this.chess_Board[this.x, this.y + move_distance_right] != null){
-                                        if (this.chess_Board[this.x, this.y + move_distance_right].side == this.side)
-                                            move_distance_right--;
-                                        break;
-                                    }
-                                }
-                                if (shift_y <= move_distance_right) return true;
-                            }
 
-                            //анализ маршрута влево от движемой фигуры
-                            int move_distance_left = 0;
-                            if (shift_y < 0){
-                                while (this.y + move_distance_left > 0){
-                                    move_distance_left--;
-                                    if (this.chess_Board[this.x, this.y + move_distance_left] != null){
-                                        if (this.chess_Board[this.x, this.y + move_distance_left].side == this.side)
-                                            move_distance_left++;
-                                        break;
-                                    }
-                                }
-                                if (shift_y >= move_distance_left) return true;
+                    //анализ маршрута вправо от движемой фигуры
+                    let move_distance_right = 0;
+                    if (shift_x > 0 && shift_y == 0) {
+                        for (let i = this.tablePos.x; i < 8 && move_distance_right < Math.abs(shift_x); i++) {
+                            move_distance_right++;
+                            tempChess = Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + move_distance_right) && (a.tablePos.y === this.tablePos.y));
+                            if (tempChess) {
+                                break;
                             }
+                        }
+                        if (shift_x <= move_distance_right) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
 
-                                //анализ маршрута вниз вправо от движемой фигуры
-                            move_distance_down = 0;
-                            move_distance_right = 0;
-                            if (shift_x > 0 && shift_y > 0)
-                            {
-                                while (this.x + move_distance_down < this.chess_Board.GetLength(0) - 1 &&
-                                        this.y + move_distance_right < this.chess_Board.GetLength(1) - 1)
-                                {
-                                    move_distance_down++;
-                                    move_distance_right++;
-                                    if (this.chess_Board[this.x + move_distance_down, this.y + move_distance_right] != null)
-                                    {
-                                        if (this.chess_Board[this.x + move_distance_down, this.y + move_distance_right].side == this.side)
-                                        {
-                                            move_distance_down--;
-                                            move_distance_right--;
-                                        }
-                                        break;
-                                    }
-                                }
-                                if (shift_x <= move_distance_down && shift_y <= move_distance_right) return true;
+                    //анализ маршрута влево от движемой фигуры
+                    let move_distance_left = 0;
+                    if (shift_x < 0 && shift_y == 0) {
+                        for (let i = this.tablePos.x; i > 0 && move_distance_left < Math.abs(shift_x); i--) {
+                            move_distance_left++;
+                            tempChess = Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x - move_distance_left) && (a.tablePos.y === this.tablePos.y));
+                            if (tempChess) {
+                                break;
                             }
+                        }
+                        if (Math.abs(shift_x) <= move_distance_left) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
 
-                            //анализ маршрута вниз влево от движемой фигуры
-                            move_distance_down = 0;
-                            move_distance_left = 0;
-                            if (shift_x > 0 && shift_y < 0)
-                            {
-                                while (this.x + move_distance_down < this.chess_Board.GetLength(0) - 1 &&
-                                        this.y + move_distance_left > 0)
-                                {
-                                    move_distance_down++;
-                                    move_distance_left--;
-                                    if (this.chess_Board[this.x + move_distance_down, this.y + move_distance_left] != null)
-                                    {
-                                        if (this.chess_Board[this.x + move_distance_down, this.y + move_distance_left].side == this.side)
-                                        {
-                                            move_distance_down--;
-                                            move_distance_left++;
-                                        }
-                                        break;
-                                    }
-                                }
-                                if (shift_x <= move_distance_down && shift_y >= move_distance_left) return true;
+                    //анализ маршрута вниз вправо от движемой фигуры
+                    move_distance_right = 0;
+                    move_distance_down = 0;
+                    if (shift_x > 0 && shift_y > 0) {
+                        let i = this.tablePos.x;
+                        let j = this.tablePos.y;
+                        while (i < 8 && move_distance_right < Math.abs(shift_x) && j < 8 && move_distance_down < Math.abs(shift_y)) {
+                            i++; j++;
+                            move_distance_down++;
+                            move_distance_right++;
+                            tempChess = Array.from(this.table.dictOfChess.values())
+                                .find(a => (a.tablePos.x === this.tablePos.x + move_distance_right) && (a.tablePos.y === this.tablePos.y + move_distance_down));
+                            if (tempChess) {
+                                break;
                             }
+                        }
+                        if (shift_x <= move_distance_right && shift_y <= move_distance_down) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
 
-                            //анализ маршрута вверх влево от движемой фигуры
-                            move_distance_up = 0;
-                            move_distance_left = 0;
-                            if (shift_x < 0 && shift_y < 0)
-                            {
-                                while (this.x + move_distance_up > 0 &&
-                                        this.y + move_distance_left > 0)
-                                {
-                                    move_distance_up--;
-                                    move_distance_left--;
-                                    if (this.chess_Board[this.x + move_distance_up, this.y + move_distance_left] != null)
-                                    {
-                                        if (this.chess_Board[this.x + move_distance_up, this.y + move_distance_left].side == this.side)
-                                        {
-                                            move_distance_up++;
-                                            move_distance_left++;
-                                        }
-                                        break;
-                                    }
-                                }
-                                if (shift_x >= move_distance_up && shift_y >= move_distance_left) return true;
+                    //анализ маршрута вниз влево от движемой фигуры
+                    move_distance_left = 0;
+                    move_distance_down = 0;
+                    if (shift_x < 0 && shift_y > 0) {
+                        let i = this.tablePos.x;
+                        let j = this.tablePos.y;
+                        while (i > 0 && move_distance_left < Math.abs(shift_x) && j < 8 && move_distance_down < Math.abs(shift_y)) {
+                            i--; j++;
+                            move_distance_down++;
+                            move_distance_left++;
+                            tempChess = Array.from(this.table.dictOfChess.values())
+                                .find(a => (a.tablePos.x === this.tablePos.x - move_distance_left) && (a.tablePos.y === this.tablePos.y + move_distance_down));
+                            if (tempChess) {
+                                break;
                             }
+                        }
+                        if (Math.abs(shift_x) <= move_distance_left && shift_y <= move_distance_down) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
 
-                            //анализ маршрута вверх вправо от движемой фигуры
-                            move_distance_up = 0;
-                            move_distance_right = 0;
-                            if (shift_x < 0 && shift_y > 0)
-                            {
-                                while (this.x + move_distance_up > 0 &&
-                                        this.y + move_distance_right < this.chess_Board.GetLength(1) - 1)
-                                {
-                                    move_distance_up--;
-                                    move_distance_right++;
-                                    if (this.chess_Board[this.x + move_distance_up, this.y + move_distance_right] != null)
-                                    {
-                                        if (this.chess_Board[this.x + move_distance_up, this.y + move_distance_right].side == this.side)
-                                        {
-                                            move_distance_up++;
-                                            move_distance_right--;
-                                        }
-                                        break;
-                                    }
-                                }
-                                if (shift_x >= move_distance_up && shift_y <= move_distance_right) return true;
-                            } */
+                    //анализ маршрута вверх влево от движемой фигуры
+                    move_distance_left = 0;
+                    move_distance_up = 0;
+                    if (shift_x < 0 && shift_y < 0) {
+                        let i = this.tablePos.x;
+                        let j = this.tablePos.y;
+                        while (i > 0 && move_distance_left < Math.abs(shift_x) && j > 0 && move_distance_up < Math.abs(shift_y)) {
+                            i--; j--;
+                            move_distance_up++;
+                            move_distance_left++;
+                            tempChess = Array.from(this.table.dictOfChess.values())
+                                .find(a => (a.tablePos.x === this.tablePos.x - move_distance_left) && (a.tablePos.y === this.tablePos.y - move_distance_up));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (Math.abs(shift_x) <= move_distance_left && Math.abs(shift_y) <= move_distance_up) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    //анализ маршрута вверх вправо от движемой фигуры
+                    move_distance_right = 0;
+                    move_distance_up = 0;
+                    if (shift_x > 0 && shift_y < 0) {
+                        let i = this.tablePos.x;
+                        let j = this.tablePos.y;
+                        while (i < 8 && move_distance_right < Math.abs(shift_x) && j > 0 && move_distance_up < Math.abs(shift_y)) {
+                            i++; j--;
+                            move_distance_up++;
+                            move_distance_right++;
+                            tempChess = Array.from(this.table.dictOfChess.values())
+                                .find(a => (a.tablePos.x === this.tablePos.x + move_distance_right) && (a.tablePos.y === this.tablePos.y - move_distance_up));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (shift_x <= move_distance_right && Math.abs(shift_y) <= move_distance_up) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
 
                     return false;
                 }
@@ -386,12 +395,259 @@
                     }
                 }
 
-                allowedShift(shift_x, shift_y){
-                    return false;//////
+                allowedShift(shift_x, shift_y) {
+                    let tempChess;
+
+                    if (shift_x === 0 && shift_y === 0)
+                        return true;
+
+                    if (((shift_x <= 1 && shift_x >= -1) && (shift_y <= 1 && shift_y >= -1))) {
+                        tempChess = Array.from(this.table.dictOfChess.values())
+                            .find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y));
+
+                        if (!tempChess)
+                            return true;
+                        else if (tempChess.side != this.side)
+                            return true;
+                    }
+
+                    return false;
                 }
             }
 
-            function getRelativeFromTablePosition(chess){
+            class Knight extends Chess {
+                constructor(table, tPosition, side, id) {
+                    super(table, tPosition, side, id);
+                    if (side === "Black") {
+                        this.img.src = "/ChessWeb/KnightB.png";
+                    }
+                    else {
+                        this.img.src = "/ChessWeb/KnightW.png";
+                    }
+                }
+
+                allowedShift(shift_x, shift_y) {
+                    let tempChess;
+
+                    if (shift_x == 0 && shift_y == 0)
+                        return true;
+
+                    //если ход (2 вверх или вниз и 1 налево или направо) или (2 налево или направло и 1 вверх или вниз)
+                    if (((shift_x === 2 || shift_x === -2) && (shift_y === 1 || shift_y === -1)) || ((shift_x === 1 || shift_x === -1) && (shift_y === 2 || shift_y === -2))) {
+                        tempChess = Array.from(this.table.dictOfChess.values())
+                            .find(a => (a.tablePos.x === this.tablePos.x + shift_x) && (a.tablePos.y === this.tablePos.y + shift_y));
+
+                        if (!tempChess)
+                            return true;
+                        else if (tempChess.side !== this.side)
+                            return true;
+                    }
+
+                    return false;
+                }
+            }
+
+            class Castle extends Chess {
+                constructor(table, tPosition, side, id) {
+                    super(table, tPosition, side, id);
+                    if (side === "Black") {
+                        this.img.src = "/ChessWeb/CastleB.png";
+                    }
+                    else {
+                        this.img.src = "/ChessWeb/CastleW.png";
+                    }
+                }
+
+                allowedShift(shift_x, shift_y) {
+                    let tempChess;
+
+                    //можно ходить по прямой
+                    if (shift_x != 0 && shift_y != 0)
+                        return false;
+                    if (shift_x == 0 && shift_y == 0)
+                        return true;
+
+                    //анализ маршрута вниз от движемой фигуры
+                    let move_distance_down = 0;
+                    if (shift_y > 0 && shift_x === 0) {
+                        for (let i = this.tablePos.y; i < 8 && move_distance_down < Math.abs(shift_y); i++) {
+                            move_distance_down++;
+                            tempChess = Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y + move_distance_down));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (shift_y <= move_distance_down) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    //анализ маршрута вверх от движемой фигуры
+                    let move_distance_up = 0;
+                    if (shift_y < 0 && shift_x === 0) {
+                        for (let i = this.tablePos.y; i > 0 && move_distance_up < Math.abs(shift_y); i--) {
+                            move_distance_up++;
+                            tempChess = Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x) && (a.tablePos.y === this.tablePos.y - move_distance_up));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (Math.abs(shift_y) <= move_distance_up) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    //анализ маршрута вправо от движемой фигуры
+                    let move_distance_right = 0;
+                    if (shift_x > 0 && shift_y == 0) {
+                        for (let i = this.tablePos.x; i < 8 && move_distance_right < Math.abs(shift_x); i++) {
+                            move_distance_right++;
+                            tempChess = Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x + move_distance_right) && (a.tablePos.y === this.tablePos.y));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (shift_x <= move_distance_right) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    //анализ маршрута влево от движемой фигуры
+                    let move_distance_left = 0;
+                    if (shift_x < 0 && shift_y == 0) {
+                        for (let i = this.tablePos.x; i > 0 && move_distance_left < Math.abs(shift_x); i--) {
+                            move_distance_left++;
+                            tempChess = Array.from(this.table.dictOfChess.values()).find(a => (a.tablePos.x === this.tablePos.x - move_distance_left) && (a.tablePos.y === this.tablePos.y));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (Math.abs(shift_x) <= move_distance_left) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    return false;
+                }
+            }
+
+            class Bishop extends Chess {
+                constructor(table, tPosition, side, id) {
+                    super(table, tPosition, side, id);
+                    if (side === "Black") {
+                        this.img.src = "/ChessWeb/BishopB.png";
+                    }
+                    else {
+                        this.img.src = "/ChessWeb/BishopW.png";
+                    }
+                }
+
+                allowedShift(shift_x, shift_y) {
+                    let tempChess;
+
+                    //можно ходить только по диагонали
+                    if (Math.Abs(shift_x) != Math.Abs(shift_y))
+                        return false;
+                    if (shift_x == 0 && shift_y == 0)
+                        return true;
+
+                    //анализ маршрута вниз вправо от движемой фигуры
+                    let move_distance_right = 0;
+                    let move_distance_down = 0;
+                    if (shift_x > 0 && shift_y > 0) {
+                        let i = this.tablePos.x;
+                        let j = this.tablePos.y;
+                        while (i < 8 && move_distance_right < Math.abs(shift_x) && j < 8 && move_distance_down < Math.abs(shift_y)) {
+                            i++; j++;
+                            move_distance_down++;
+                            move_distance_right++;
+                            tempChess = Array.from(this.table.dictOfChess.values())
+                                .find(a => (a.tablePos.x === this.tablePos.x + move_distance_right) && (a.tablePos.y === this.tablePos.y + move_distance_down));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (shift_x <= move_distance_right && shift_y <= move_distance_down) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    //анализ маршрута вниз влево от движемой фигуры
+                    let move_distance_left = 0;
+                    move_distance_down = 0;
+                    if (shift_x < 0 && shift_y > 0) {
+                        let i = this.tablePos.x;
+                        let j = this.tablePos.y;
+                        while (i > 0 && move_distance_left < Math.abs(shift_x) && j < 8 && move_distance_down < Math.abs(shift_y)) {
+                            i--; j++;
+                            move_distance_down++;
+                            move_distance_left++;
+                            tempChess = Array.from(this.table.dictOfChess.values())
+                                .find(a => (a.tablePos.x === this.tablePos.x - move_distance_left) && (a.tablePos.y === this.tablePos.y + move_distance_down));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (Math.abs(shift_x) <= move_distance_left && shift_y <= move_distance_down) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    //анализ маршрута вверх влево от движемой фигуры
+                    move_distance_left = 0;
+                    let move_distance_up = 0;
+                    if (shift_x < 0 && shift_y < 0) {
+                        let i = this.tablePos.x;
+                        let j = this.tablePos.y;
+                        while (i > 0 && move_distance_left < Math.abs(shift_x) && j > 0 && move_distance_up < Math.abs(shift_y)) {
+                            i--; j--;
+                            move_distance_up++;
+                            move_distance_left++;
+                            tempChess = Array.from(this.table.dictOfChess.values())
+                                .find(a => (a.tablePos.x === this.tablePos.x - move_distance_left) && (a.tablePos.y === this.tablePos.y - move_distance_up));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (Math.abs(shift_x) <= move_distance_left && Math.abs(shift_y) <= move_distance_up) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    //анализ маршрута вверх вправо от движемой фигуры
+                    move_distance_right = 0;
+                    move_distance_up = 0;
+                    if (shift_x > 0 && shift_y < 0) {
+                        let i = this.tablePos.x;
+                        let j = this.tablePos.y;
+                        while (i < 8 && move_distance_right < Math.abs(shift_x) && j > 0 && move_distance_up < Math.abs(shift_y)) {
+                            i++; j--;
+                            move_distance_up++;
+                            move_distance_right++;
+                            tempChess = Array.from(this.table.dictOfChess.values())
+                                .find(a => (a.tablePos.x === this.tablePos.x + move_distance_right) && (a.tablePos.y === this.tablePos.y - move_distance_up));
+                            if (tempChess) {
+                                break;
+                            }
+                        }
+                        if (shift_x <= move_distance_right && Math.abs(shift_y) <= move_distance_up) {
+                            if (!tempChess) return true;
+                            if (tempChess.side !== this.side) return true;
+                        }
+                    }
+
+                    return false;
+                }
+            }
+
+            function getRelativeFromTablePosition(chess) {
                 let relativeX = (chess.canvasPosition.x - chess.table.position.x) / chess.table.size.width;
                 let relativeY = (chess.canvasPosition.y - chess.table.position.y) / chess.table.size.height;
                 return new Vector(relativeX, relativeY);
@@ -409,29 +665,63 @@
                 return new Vector(x, y);
             }
 
+            //объект доски
             let table = new Table();
 
-            new King(table, new Vector(3, 5), "White", 0);
-            new King(table, new Vector(3, 6), "Black", 1);
-            new Pawn(table, new Vector(3, 1), "White", 2);
-            new Pawn(table, new Vector(2, 1), "White", 3);
-            new Pawn(table, new Vector(2, 6), "Black", 4);
-            new Queen(table, new Vector(3, 4), "Black", 5);
+            //объекты шахмат
+            {
+                new King(table, new Vector(3, 0), "White", 0);
+                new King(table, new Vector(3, 7), "Black", 1);
+
+                new Pawn(table, new Vector(0, 1), "White", 2);
+                new Pawn(table, new Vector(1, 1), "White", 3);
+                new Pawn(table, new Vector(2, 1), "White", 4);
+                new Pawn(table, new Vector(3, 1), "White", 5);
+                new Pawn(table, new Vector(4, 1), "White", 6);
+                new Pawn(table, new Vector(5, 1), "White", 7);
+                new Pawn(table, new Vector(6, 1), "White", 8);
+                new Pawn(table, new Vector(7, 1), "White", 9);
+
+                new Castle(table, new Vector(0, 0), "White", 10);
+                new Knight(table, new Vector(1, 0), "White", 11);
+                new Bishop(table, new Vector(2, 0), "White", 12);
+                new Queen(table, new Vector(4, 0), "White", 13);
+                new Bishop(table, new Vector(5, 0), "White", 14);
+                new Knight(table, new Vector(6, 0), "White", 15);
+                new Castle(table, new Vector(7, 0), "White", 16);
+
+                new Pawn(table, new Vector(0, 6), "Black", 17);
+                new Pawn(table, new Vector(1, 6), "Black", 18);
+                new Pawn(table, new Vector(2, 6), "Black", 19);
+                new Pawn(table, new Vector(3, 6), "Black", 20);
+                new Pawn(table, new Vector(4, 6), "Black", 21);
+                new Pawn(table, new Vector(5, 6), "Black", 22);
+                new Pawn(table, new Vector(6, 6), "Black", 23);
+                new Pawn(table, new Vector(7, 6), "Black", 24);
+
+                new Castle(table, new Vector(0, 7), "Black", 25);
+                new Knight(table, new Vector(1, 7), "Black", 26);
+                new Bishop(table, new Vector(2, 7), "Black", 27);
+                new Queen(table, new Vector(4, 7), "Black", 28);
+                new Bishop(table, new Vector(5, 7), "Black", 29);
+                new Knight(table, new Vector(6, 7), "Black", 30);
+                new Castle(table, new Vector(7, 7), "Black", 31);
+            }
 
             let moveCount = 0;
             let IsKingDead = false;
             canvas.addEventListener("mousedown", mouseDown);
             function mouseDown(event) {
-                if(GameState === "ActiveLeading" && moveCount === 0){
+                if (GameState === "ActiveLeading" && moveCount === 0) {
                     let targetObj;//захваченный объект
                     let mousePosInObj;//координаты курсора внутри объекта относительно его верхнего левого угла
 
                     //перебираем объекты из массива объектов-шахмат в объекте доски и выполняем ивент для шахматы на которую указывает курсор
-                    for(let pairIdChess of table.dictOfChess){
-                        if(event.clientX > pairIdChess[1].canvasPosition.x &&
-                        event.clientX < pairIdChess[1].canvasPosition.x + pairIdChess[1].size.width &&
-                        event.clientY > pairIdChess[1].canvasPosition.y &&
-                        event.clientY < pairIdChess[1].canvasPosition.y + pairIdChess[1].size.height){
+                    for (let pairIdChess of table.dictOfChess) {
+                        if (event.clientX > pairIdChess[1].canvasPosition.x &&
+                            event.clientX < pairIdChess[1].canvasPosition.x + pairIdChess[1].size.width &&
+                            event.clientY > pairIdChess[1].canvasPosition.y &&
+                            event.clientY < pairIdChess[1].canvasPosition.y + pairIdChess[1].size.height) {
 
                             targetObj = pairIdChess[1];
                             if (PlayerSide !== targetObj.side) break;
@@ -517,7 +807,7 @@
                         //меняем координаты текущей фигуры на координаты этой ячейки
                         else {
                             let idOfChessToDelete;
-                            for(let pairIdChess of targetObj.table.dictOfChess){
+                            for (let pairIdChess of targetObj.table.dictOfChess) {
                                 if (pairIdChess[1].tablePos.x === tPos.x && pairIdChess[1].tablePos.y === tPos.y) {
                                     if (pairIdChess[0] === 0 || pairIdChess[0] === 1) {
                                         IsKingDead = true;
@@ -538,6 +828,13 @@
                             targetObj.relativeFromTablePosition = getRelativeFromTablePosition(targetObj);
 
                             moveCount++;
+
+                            //let t1 = table.dictOfChess.get(0);
+                            //let t2 = table.dictOfChess.get(1);
+                            //if ((PlayerSide === "White" && !t1) || (PlayerSide === "Black" && !t2)) {
+                            //    IsKingDead = true;
+                            //    surrender();
+                            //}
                         }
                     }
                 }
@@ -551,11 +848,11 @@
                 if (table.update)
                     table.update();
 
-                for(let pairIdChess of table.dictOfChess){
+                for (let pairIdChess of table.dictOfChess) {
                     //отрисовывает объект
                     pairIdChess[1].draw();
                     //обновляет состояние объекта если внутри есть соответствующий метод
-                    if(pairIdChess[1].update)
+                    if (pairIdChess[1].update)
                         pairIdChess[1].update();
                 }
 
@@ -616,6 +913,7 @@
                     updateChess(parsedResponse);
 
                     //проверка жив ли король
+                    ////////////
                     let t1 = table.dictOfChess.get(0);
                     let t2 = table.dictOfChess.get(1);
                     if ((PlayerSide === "White" && !t1) || (PlayerSide === "Black" && !t2)) {
@@ -675,7 +973,8 @@
                     let IdXY = e.match(/[0-9]+\.*[0-9]*/gi);
                     dictIdChessRelCoord.set(Number(IdXY[0]), {
                         relX: Number(IdXY[1]),
-                        relY: Number(IdXY[2])});
+                        relY: Number(IdXY[2])
+                    });
                 }
 
                 for (let pairIdChess of table.dictOfChess) {
@@ -750,8 +1049,8 @@
                 }
             }
 
-            window.onclose = function () { socket.close(); } 
-            window.onunload = function () { socket.close(); } 
+            window.onclose = function () { socket.close(); }
+            window.onunload = function () { socket.close(); }
 
             //--------------------------------------------------------------
             updateCanvas();
