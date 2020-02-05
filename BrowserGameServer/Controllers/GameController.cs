@@ -28,6 +28,10 @@ namespace BrowserGameServer.Controllers
                 currentClientIPAddress = MvcApplication.GetLocalIPAddress();
             }
 
+            //Проверяем есть ли уже сессия с текущим клиентом, и если есть то уничтожаем ее.
+            //П.С. данная логика делает игру чувствительной к количеству запросов от одного клиента.
+            //В опере почему то браузер иногда сам делает запросы по предыдущему адресу при клике по адресной строке, 
+            //которые к тому же не выводятся в окне браузера, что ломает сессию другому игроку, которому попался оппонент с оперой.
             GameSessionServer freeSession = null;
             foreach (var e in MvcApplication.ActiveGameSessions)
             {
@@ -44,6 +48,8 @@ namespace BrowserGameServer.Controllers
                         break;
                     }
             }
+
+            //находим свободную сессию, где уже сидит в режиме ожидания один игрок
             foreach (var ee in MvcApplication.ActiveGameSessions)
             {
                 if (ee.PlayersCount < 2)
@@ -134,6 +140,13 @@ namespace BrowserGameServer.Controllers
             }
 
             return "";
+        }
+
+
+        public ActionResult CurrentSessions()/*!!!*/
+        {
+            ViewBag.Sessions = MvcApplication.ActiveGameSessions;
+            return View();
         }
 
     }

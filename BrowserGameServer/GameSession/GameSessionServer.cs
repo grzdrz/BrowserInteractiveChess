@@ -57,7 +57,7 @@ namespace BrowserGameServer.GameSession
 
         public GameSessionServer()
         {
-            while (!IsUnoccupiedPort(PORT = CreateRandomPort())) ;
+            while (!IsUnoccupiedPort(PORT = CreateRandomPort())) ;//генерирует новый допустимый порт для сервера сессии
             ip = IPAddress.Parse(MvcApplication.GetLocalIPAddress());
             endPoint = new IPEndPoint(ip, PORT);
         }
@@ -119,8 +119,9 @@ namespace BrowserGameServer.GameSession
                     return;
 
                 countOfCalls++;
-                MvcApplication.ActiveGameSessions.Remove(this);
-                this.serverSocket.Close();
+                MvcApplication.ActiveGameSessions.Remove(this);//удаляем объект сессии из колекции сессий, что бы его мог съесть мусорщик
+                this.serverSocket.Close();//закрываем серверный сокет
+                //клиентские сокеты/потоки закроются сами после выставления статуса Disconnected и/или разрыва сокета со стороны клиента
 
                 Debug.WriteLine(">>Sessions count: " + MvcApplication.ActiveGameSessions.Count + "<<");
             }

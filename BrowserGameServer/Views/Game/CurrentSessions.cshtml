@@ -1,0 +1,7 @@
+﻿<h2>CurrentSessions</h2>
+<ul>
+    @foreach (var session in ViewBag.Sessions)
+    {
+    <li>@session.FirstPlayer.PlayerLogin VS @session.SecondPlayer.PlayerLogin</li>
+    }
+</ul>
