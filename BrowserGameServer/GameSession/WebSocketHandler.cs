@@ -117,7 +117,7 @@ namespace BrowserGameServer.GameSession
                 TimeSpan dTime = TimeSpan.Zero;
                 while (!Stream.DataAvailable)
                 {
-                    if (dTime.TotalMilliseconds > 10000)
+                    if (dTime.TotalMilliseconds > 5000)
                         break;
                     timerCurrent = DateTime.Now;
                     dTime = timerCurrent - timerStart;

@@ -104,7 +104,7 @@ namespace BrowserGameServer.GameSession
             return false;  
         }
 
-        static object locker = new object();
+        static object locker = new object();//такая синхронизация в пуле не работает???
         public int countOfCalls = 0;
         public void FinalizeSession()
         {//вызывается из 2х обработчиков веб сокетов по очереди, но срабатывает 1 раз

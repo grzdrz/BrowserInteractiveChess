@@ -32,6 +32,8 @@ namespace BrowserGameServer.Controllers
             //П.С. данная логика делает игру чувствительной к количеству запросов от одного клиента.
             //В опере почему то браузер иногда сам делает запросы по предыдущему адресу при клике по адресной строке, 
             //которые к тому же не выводятся в окне браузера, что ломает сессию другому игроку, которому попался оппонент с оперой.
+
+            //внедрить микробан при ливах
             GameSessionServer freeSession = null;
             foreach (var e in MvcApplication.ActiveGameSessions)
             {
@@ -91,6 +93,11 @@ namespace BrowserGameServer.Controllers
                 ViewBag.Ip = freeSession.ip;
             }
 
+            return View();
+        }
+
+        public ActionResult GameSessionSR()
+        {
             return View();
         }
 

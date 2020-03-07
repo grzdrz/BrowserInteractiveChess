@@ -104,3 +104,9 @@ C:\Users\space\Music\BrowserGameServer\BrowserGameServer\obj\Debug\BrowserGameSe
 C:\Users\space\Music\BrowserGameServer\BrowserGameServer\obj\Debug\BrowserGameServer.csproj.CopyComplete
 C:\Users\space\Music\BrowserGameServer\BrowserGameServer\obj\Debug\BrowserGameServer.dll
 C:\Users\space\Music\BrowserGameServer\BrowserGameServer\obj\Debug\BrowserGameServer.pdb
+C:\Users\space\Music\BrowserGameServer\BrowserGameServer\bin\Microsoft.AspNet.SignalR.Core.dll
+C:\Users\space\Music\BrowserGameServer\BrowserGameServer\bin\Microsoft.AspNet.SignalR.SystemWeb.dll
+C:\Users\space\Music\BrowserGameServer\BrowserGameServer\bin\Microsoft.AspNet.SignalR.Core.pdb
+C:\Users\space\Music\BrowserGameServer\BrowserGameServer\bin\Microsoft.AspNet.SignalR.Core.xml
+C:\Users\space\Music\BrowserGameServer\BrowserGameServer\bin\Microsoft.AspNet.SignalR.SystemWeb.pdb
+C:\Users\space\Music\BrowserGameServer\BrowserGameServer\bin\Microsoft.AspNet.SignalR.SystemWeb.xml
