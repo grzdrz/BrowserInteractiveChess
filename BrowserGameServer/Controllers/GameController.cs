@@ -33,7 +33,6 @@ namespace BrowserGameServer.Controllers
             //В опере почему то браузер иногда сам делает запросы по предыдущему адресу при клике по адресной строке, 
             //которые к тому же не выводятся в окне браузера, что ломает сессию другому игроку, которому попался оппонент с оперой.
 
-            //внедрить микробан при ливах
             GameSessionServer freeSession = null;
             foreach (var e in MvcApplication.ActiveGameSessions)
             {
@@ -96,11 +95,6 @@ namespace BrowserGameServer.Controllers
             return View();
         }
 
-        public ActionResult GameSessionSR()
-        {
-            return View();
-        }
-
         public string NextMove()
         {
             var currentClientIPAddress = HttpContext.Request.UserHostAddress;
@@ -156,6 +150,40 @@ namespace BrowserGameServer.Controllers
             return View();
         }
 
+        //==========================================================
+
+        public ActionResult GameSessionSR()
+        {
+            int sessionId;
+            int playerNumber;
+
+            var notActiveSession = GameSessionSignalR.SessionManager.Sessions.FirstOrDefault(a => !(a.IsGameActive));
+            if (notActiveSession != null)
+            {
+                var newPlayer = new GameSessionSignalR.Player();
+                newPlayer.PlayerSession = notActiveSession;
+                newPlayer.PlayerNumber = playerNumber = 2;
+                notActiveSession.Players.Add(newPlayer);
+
+                sessionId = notActiveSession.SessionId;
+            }
+            else
+            {
+                var newSession = new GameSessionSignalR.SessionInfo();
+                GameSessionSignalR.SessionManager.Sessions.Add(newSession);
+
+                var newPlayer = new GameSessionSignalR.Player();
+                newPlayer.PlayerSession = newSession;
+                newPlayer.PlayerNumber = playerNumber = 1;
+                newSession.Players.Add(newPlayer);
+
+                newSession.SessionId = sessionId = GameSessionSignalR.SessionManager.Sessions.Count - 1;////////на guid
+            }
+
+            ViewBag.sessionId = sessionId;
+            ViewBag.playerNumber = playerNumber;
+            return View();
+        }
     }
 }
 //Концепт разрыва соединения/окончания сессии построен на факте того, что под каждого клиента создается единственный TCP сокет

@@ -561,7 +561,7 @@
                     let tempChess;
 
                     //можно ходить только по диагонали
-                    if (Math.Abs(shift_x) != Math.Abs(shift_y))
+                    if (Math.abs(shift_x) != Math.abs(shift_y))
                         return false;
                     if (shift_x == 0 && shift_y == 0)
                         return true;
@@ -873,14 +873,10 @@
                 requestAnimationFrame(updateCanvas);
             }
 
-            //WebSoсket logic------------------------------------------------------------
-            //адрес сервера сессии
-            @*let ip = "@ViewBag.Ip";
-            let port = "@ViewBag.PORT";
-            let socket = new WebSocket("ws://" + ip + ":" + port);*@
-
-            //==============================================================
+            //SignalRLogic===============================================================
             let game;
+            let sessionId = @ViewBag.sessionId;
+            let playerNumber = @ViewBag.playerNumber;
             let playerId;
             $(
                 // Ссылка на автоматически-сгенерированный прокси хаба
@@ -907,7 +903,7 @@
                     let t1 = table.dictOfChess.get(0);
                     let t2 = table.dictOfChess.get(1);
                     if ((PlayerSide === "White" && !t1) || (PlayerSide === "Black" && !t2)) {
-                        game.server.surrender();
+                        game.server.surrender(sessionId, playerNumber);
                     }
                 }
 
@@ -919,42 +915,46 @@
                     gameInfo.TableState = buildChessPositions();
                 }
 
-                game.server.send(gameInfo);
+                game.server.send(gameInfo, sessionId);
             };
 
             // Подключаем нового пользователя
             game.client.onConnected = function (id) {
                 playerId = id;
+                let gameInfo = {
+                    Side: PlayerSide,
+                    PlayerState: "WaitBegining",
+                    TableState: ""
+                };
+                game.server.send(gameInfo, sessionId);
             };
 
-            // Удаляем пользователя
-            game.client.onUserDisconnected = function () {
-                alert("You opponent disconnected");
+            game.client.onDisconnected = function () {///////////
+                canvas.disabled = true;
+                continueButton.disabled = true;
+                surrenderButton.disabled = true;
             };
 
             game.client.lose = function () {
+                canvas.disabled = true;
+                continueButton.disabled = true;
+                surrenderButton.disabled = true;
                 alert("You lose");
+                game.server.disconnect(sessionId);
             };
 
             game.client.win = function () {
+                canvas.disabled = true;
+                continueButton.disabled = true;
+                surrenderButton.disabled = true;
                 alert("You win");
-            };
-
-            game.client.disconnect = function () {
-                game.server.disconnect();
+                game.server.disconnect(sessionId);
             };
 
             $(
                 // Открываем соединение
                 $.connection.hub.start().done(function () {
-                    game.server.connect();
-
-                    let gameInfo = {
-                        Side: PlayerSide,
-                        PlayerState: "WaitBegining",
-                        TableState: ""
-                    };
-                    game.server.send(gameInfo);
+                    game.server.connect(sessionId, playerNumber);//асинх???
                 })
             );
 
@@ -1030,7 +1030,7 @@
             continueButton.addEventListener("click", nextMove);
             function nextMove() {
                 continueButton.disabled = true;
-                game.server.swapActiveStates();
+                game.server.swapActiveStates(sessionId);
             }
 
             ////Click button to surrender-----------------------------------
@@ -1039,7 +1039,7 @@
             surrenderButton.addEventListener("click", surrender);
             function surrender() {
                 surrenderButton.disabled = true;
-                game.server.surrender();
+                game.server.surrender(sessionId, playerNumber);
             }
 
             //--------------------------------------------------------------

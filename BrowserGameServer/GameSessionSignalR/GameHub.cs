@@ -9,26 +9,29 @@ namespace BrowserGameServer.GameSessionSignalR
 {
     public class GameHub : Hub
     {
-        static List<Player> Players = new List<Player>();
-        static string CommonDataHub = "";
+        //static List<Player> Players = new List<Player>();
+        //static string CommonDataHub = "";
+
+        public SessionManager SM = new SessionManager();
 
         // Отправка сообщений
-        public void Send(GameInfo gameInfo)
+        public void Send(GameInfo gameInfo, int sessionId)
         {
+            var curSession = SM.FindSessionById(sessionId);
             var id = Context.ConnectionId;
-            var curPlayer = Players.FirstOrDefault(a => a.ConnectionId == id);
+            var curPlayer = curSession.Players.FirstOrDefault(a => a.ConnectionId == id);
 
             if (curPlayer.Side == Side.White) gameInfo.Side = Side.White;
             else gameInfo.Side = Side.Black;
 
-            if (Players.Count == 2)
+            if (curSession.Players.Count == 2)
             {
                 gameInfo.PlayerState = curPlayer.PlayerState;
                 //чья очередь ходить
                 if (curPlayer.PlayerState == PlayerStates.ActiveLeading)
-                    CommonDataHub = gameInfo.TableState;
+                    curSession.CommonDataHub = gameInfo.TableState;
                 if (curPlayer.PlayerState == PlayerStates.ActiveWaiting)
-                    gameInfo.TableState = CommonDataHub;
+                    gameInfo.TableState = curSession.CommonDataHub;
             }
             else
                 gameInfo.PlayerState = PlayerStates.WaitBegining;
@@ -37,56 +40,57 @@ namespace BrowserGameServer.GameSessionSignalR
             Clients.Caller.sendGameState(gameInfo);
         }
 
-        public void SwapActiveStates()
+        public void SwapActiveStates(int sessionId)
         {
-            var temp = Players[0].PlayerState;
-            Players[0].PlayerState = Players[1].PlayerState;
-            Players[1].PlayerState = temp;
+            var curSession = SM.FindSessionById(sessionId);
+
+            var temp = curSession.Players[0].PlayerState;
+            curSession.Players[0].PlayerState = curSession.Players[1].PlayerState;
+            curSession.Players[1].PlayerState = temp;
         }
 
-        public void Surrender()
+        public void Surrender(int sessionId, int playerNumber)
         {
-            var id = Context.ConnectionId;
-            var surPlayer = Players.Find(a => a.ConnectionId == id);
+            var curSession = SM.FindSessionById(sessionId);
 
-            Clients.Caller.lose();
-            Clients.AllExcept(id).win();
-            Clients.All.disconnect();
+            var id = Context.ConnectionId;
+            var surPlayer = curSession.Players.Find(a => a.ConnectionId == id);
+
+            Clients.Client(curSession.Players.Find(a => a.PlayerNumber == playerNumber).ConnectionId).lose();
+            Clients.Client(curSession.Players.Find(a => !(a.PlayerNumber == playerNumber)).ConnectionId).win();
         }
 
         // Подключение нового пользователя
-        public void Connect()
+        public void Connect(int sessionId, int playerNumber)
         {
+            var curSession = SM.FindSessionById(sessionId);
             var id = Context.ConnectionId;
+            var newPlayer = curSession.Players.Find(a => a.PlayerNumber == playerNumber);
+            newPlayer.ConnectionId = id;
 
-            if (!Players.Any(x => x.ConnectionId == id))
+            //если один игрок уже есть в сессии, то цвет и состояние второго подбирается на основе первого.
+            if (curSession.Players.Count == 2)
             {
-                var newPlayer = new Player { ConnectionId = id};
-
-                if (Players.Count == 1)
-                {
-                    if (Players.FirstOrDefault().Side == Side.White)
-                        newPlayer.Side = Side.Black;
-                    else
-                        newPlayer.Side = Side.White;
-                    if(Players.FirstOrDefault().PlayerState == PlayerStates.ActiveLeading)
-                        newPlayer.PlayerState = PlayerStates.ActiveWaiting;
-                    else
-                        newPlayer.PlayerState = PlayerStates.ActiveLeading;
-                }
-                else if(Players.Count == 0)
-                {
+                if (curSession.Players.FirstOrDefault().Side == Side.White)
+                    newPlayer.Side = Side.Black;
+                else
                     newPlayer.Side = Side.White;
+                if (curSession.Players.FirstOrDefault().PlayerState == PlayerStates.ActiveLeading)
+                    newPlayer.PlayerState = PlayerStates.ActiveWaiting;
+                else
                     newPlayer.PlayerState = PlayerStates.ActiveLeading;
-                }
-                Players.Add(newPlayer);
-
-                // Посылаем сообщение текущему пользователю
-                Clients.Caller.onConnected(id);
             }
+            else if (curSession.Players.Count == 1)
+            {
+                newPlayer.Side = Side.White;
+                newPlayer.PlayerState = PlayerStates.ActiveLeading;
+            }
+
+            // Посылаем сообщение текущему пользователю
+            Clients.Caller.onConnected(id);
         }
 
-        public void Disconnect()
+        public void Disconnect(int sessionId)
         {
             OnDisconnected(true);
         }
@@ -94,12 +98,14 @@ namespace BrowserGameServer.GameSessionSignalR
         // Отключение пользователя
         public override System.Threading.Tasks.Task OnDisconnected(bool stopCalled)
         {
-            var item = Players.FirstOrDefault(x => x.ConnectionId == Context.ConnectionId);
-            if (item != null)
+            var session = SessionManager.Sessions.FirstOrDefault(x => 
+            x.FirstPlayer.ConnectionId == Context.ConnectionId || 
+            x.SecondPlayer.ConnectionId == Context.ConnectionId);
+
+            if (session != null)
             {
-                Players.Remove(item);
-                var id = Context.ConnectionId;
-                Clients.AllExcept(id).onUserDisconnected();
+                Clients.Clients(session.Players.Select(a => a.ConnectionId).ToList()).onDisconnect();
+                SessionManager.Sessions.Remove(session);//если отключился один игрок, то вся сессия удаляется////////
             }
 
             return base.OnDisconnected(stopCalled);

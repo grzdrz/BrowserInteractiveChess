@@ -167,6 +167,8 @@
     <Compile Include="GameSessionSignalR\GameHub.cs" />
     <Compile Include="GameSessionSignalR\GameInfo.cs" />
     <Compile Include="GameSessionSignalR\Player.cs" />
+    <Compile Include="GameSessionSignalR\SessionInfo.cs" />
+    <Compile Include="GameSessionSignalR\SessionManager.cs" />
     <Compile Include="GameSession\temp\ClientProfile.cs" />
     <Compile Include="GameSession\temp\Controller.cs" />
     <Compile Include="GameSession\GameSessionServer.cs" />

@@ -22,13 +22,14 @@ namespace BrowserGameServer.GameSessionSignalR
 
     public class Player
     {
-        public string ConnectionId { get; set; }
+        public string ConnectionId { get; set; }//id в контексте хаба signalr
+        public int PlayerNumber { get; set; }//формальный номер игрока, нужный для операции коннекта
         public string PlayerLogin { get; set; }
         public string PlayerAddress { get; set; }
 
-        //public WebSocketHandler PlayerHandler;
-
         public PlayerStates PlayerState { get; set; } = PlayerStates.WaitBegining;
         public Side Side { get; set; }
+
+        public SessionInfo PlayerSession { get; set; }
     }
 }
