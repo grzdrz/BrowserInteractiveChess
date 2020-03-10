@@ -9,6 +9,6 @@ namespace BrowserGameServer.GameSessionSignalR
     {
         public Side Side { get; set; }
         public PlayerStates PlayerState { get; set; }
-        public string TableState { get; set; }
+        public string BoardState { get; set; }
     }
 }

@@ -23,7 +23,7 @@ namespace BrowserGameServer.GameSessionSignalR
     public class Player
     {
         public string ConnectionId { get; set; }//id в контексте хаба signalr
-        public int PlayerNumber { get; set; }//формальный номер игрока, нужный для операции коннекта
+        public int PlayerNumber { get; set; }
         public string PlayerLogin { get; set; }
         public string PlayerAddress { get; set; }
 

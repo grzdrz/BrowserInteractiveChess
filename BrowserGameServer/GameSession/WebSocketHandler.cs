@@ -93,7 +93,7 @@ namespace BrowserGameServer.GameSession
         {
             SubResponses.Add("Side", "");
             SubResponses.Add("PlayerState", "WaitBegining");
-            SubResponses.Add("TableState", "");
+            SubResponses.Add("BoardState", "");
 
             if (PlayerOwner.Side == Side.White)
             {
@@ -159,12 +159,12 @@ namespace BrowserGameServer.GameSession
                     if (PlayerOwner.PlayerState == PlayerStates.ActiveLeading)
                     {
                         SubResponses["PlayerState"] = "ActiveLeading";
-                        Session.CommonDataHub = ParsedWSRequest["TableState"];
+                        Session.CommonDataHub = ParsedWSRequest["BoardState"];
                     }
                     if (PlayerOwner.PlayerState == PlayerStates.ActiveWaiting)
                     {
                         SubResponses["PlayerState"] = "ActiveWaiting";
-                        SubResponses["TableState"] = Session.CommonDataHub;
+                        SubResponses["BoardState"] = Session.CommonDataHub;
                     }
                 }
                 #endregion
@@ -357,7 +357,7 @@ namespace BrowserGameServer.GameSession
         //Формат данных общения с клиентом:
         //Side:...<delimiter>                                                   сервер --> клиенты
         //PlayerState:...<delimiter>                                            сервер <--> клиенты
-        //TableState:(id, x1, y1);(id, x2, y2);...<delimiter>                   сервер <--> клиенты
+        //BoardState:(id, x1, y1);(id, x2, y2);...<delimiter>                   сервер <--> клиенты
 
         //последняя строка это id конкретной фигуры и ее относительные координаты(относительно положения доски на холсте)
         //относительные координаты нужны для синхронизации координат игроков с разными разрешениями экрана

@@ -9,12 +9,8 @@ namespace BrowserGameServer.GameSessionSignalR
 {
     public class GameHub : Hub
     {
-        //static List<Player> Players = new List<Player>();
-        //static string CommonDataHub = "";
-
         public SessionManager SM = new SessionManager();
 
-        // Отправка сообщений
         public void Send(GameInfo gameInfo, int sessionId)
         {
             var curSession = SM.FindSessionById(sessionId);
@@ -29,9 +25,9 @@ namespace BrowserGameServer.GameSessionSignalR
                 gameInfo.PlayerState = curPlayer.PlayerState;
                 //чья очередь ходить
                 if (curPlayer.PlayerState == PlayerStates.ActiveLeading)
-                    curSession.CommonDataHub = gameInfo.TableState;
+                    curSession.CommonDataHub = gameInfo.BoardState;
                 if (curPlayer.PlayerState == PlayerStates.ActiveWaiting)
-                    gameInfo.TableState = curSession.CommonDataHub;
+                    gameInfo.BoardState = curSession.CommonDataHub;
             }
             else
                 gameInfo.PlayerState = PlayerStates.WaitBegining;
@@ -60,7 +56,6 @@ namespace BrowserGameServer.GameSessionSignalR
             Clients.Client(curSession.Players.Find(a => !(a.PlayerNumber == playerNumber)).ConnectionId).win();
         }
 
-        // Подключение нового пользователя
         public void Connect(int sessionId, int playerNumber)
         {
             var curSession = SM.FindSessionById(sessionId);
@@ -86,7 +81,6 @@ namespace BrowserGameServer.GameSessionSignalR
                 newPlayer.PlayerState = PlayerStates.ActiveLeading;
             }
 
-            // Посылаем сообщение текущему пользователю
             Clients.Caller.onConnected(id);
         }
 
@@ -95,7 +89,6 @@ namespace BrowserGameServer.GameSessionSignalR
             OnDisconnected(true);
         }
 
-        // Отключение пользователя
         public override System.Threading.Tasks.Task OnDisconnected(bool stopCalled)
         {
             var session = SessionManager.Sessions.FirstOrDefault(x => 
