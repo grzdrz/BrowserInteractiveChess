@@ -25,12 +25,16 @@ namespace BrowserGameServer.GameSession
 
     public class Player
     {
-        public string PlayerLogin;
-        public string PlayerAddress;
+        public string ConnectionId { get; set; }//id в контексте хаба signalr
+        public int PlayerNumber { get; set; }
+        public string PlayerLogin { get; set; }
+        public string PlayerAddress { get; set; }
 
-        public WebSocketHandler PlayerHandler;
+        public WebSocketHandler PlayerHandler { get; set; }
 
-        public PlayerStates PlayerState = PlayerStates.WaitBegining;
-        public Side Side;
+        public PlayerStates PlayerState { get; set; } = PlayerStates.WaitBegining;
+        public Side Side { get; set; }
+
+        public SessionInfo PlayerSession { get; set; }
     }
 }

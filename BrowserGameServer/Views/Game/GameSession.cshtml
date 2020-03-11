@@ -896,6 +896,8 @@
             //адрес сервера сессии
             let ip = "@ViewBag.Ip";
             let port = "@ViewBag.PORT";
+            let sessionId = @ViewBag.sessionId;
+            let playerNumber = @ViewBag.playerNumber;
             let socket = new WebSocket("ws://" + ip + ":" + port);
 
             //для отправки серверу по первому запросу(после рукопожатия)
@@ -903,8 +905,11 @@
             let BPlayerState = "PlayerState:WaitBegining<delimiter>";
             let BIsCheckmate = "IsCheckmate:false<delimiter>";
             let BTableState = "TableState:" + buildChessPositions() + "<delimiter>";
+            let PlayerNumber = "PlayerNumber:" + playerNumber + "<delimiter>";
+            let SessionId = "SessionId:" + sessionId + "<delimiter>";
+            let IsConnectedQuery = "IsConnectedQuery:true<delimiter>";
 
-            let tempString = BSide + BPlayerState + BIsCheckmate + BTableState;
+            let tempString = BSide + BPlayerState + BIsCheckmate + BTableState + PlayerNumber + SessionId + IsConnectedQuery;
             let parsedResponse = parseResponse(tempString);
             let request = buildRequest(parsedResponse);
 
@@ -918,7 +923,7 @@
                 updateStates(parsedResponse);
 
                 //пока игрок ждет своей очереди, он не может продолжить ход
-                if (/*parsedResponse.get("PlayerState")*/GameState === "ActiveLeading")
+                if (GameState === "ActiveLeading")
                     continueButton.disabled = false;
                 else
                     continueButton.disabled = true;
@@ -976,6 +981,7 @@
             function parseResponse(response) {
                 //Header1:blabla1<delimiter>Header2:blabla2<delimiter>...<delimiter> -> (Header1:blabla1)(Header2:blabla2)...
                 let tempReq = response.split("<delimiter>");
+                tempReq = tempReq.slice(0, tempReq.length - 1);
                 let dict = new Map();
                 let temp1 = null;
                 for (let i = 0; i < tempReq.length; i++) {
@@ -1029,10 +1035,10 @@
 
             function buildRequest(subRequests) {
                 let result = "";
-                result += "Side:" + subRequests.get("Side") + "<delimiter>";
-                result += "PlayerState:" + subRequests.get("PlayerState") + "<delimiter>";
-                result += "IsCheckmate:" + subRequests.get("IsCheckmate") + "<delimiter>";
-                result += "TableState:" + subRequests.get("TableState") + "<delimiter>";
+                for (let key of subRequests.keys()) {
+                    result += key + ":" + subRequests.get(key) + "<delimiter>";
+                }
+
                 return result;
             }
 

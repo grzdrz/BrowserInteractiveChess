@@ -7,59 +7,38 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Web;
 using System.Diagnostics;
+using System.Threading;
 
 namespace BrowserGameServer.GameSession
 {
-    public enum GameState
-    {
-        WaitingAllPlayers,
-        InProcess,
-        End
-    }
-
     public class GameSessionServer
     {
-        public GameState GameState = GameState.WaitingAllPlayers;
-
-        public Dictionary<int, Player> Players = new Dictionary<int, Player>();
-        public int MaxPlayersCount = 2;
-        public int PlayersCount
-        {
-            get { return Players.Count; }
-        }
-        public Player FirstPlayer
-        {
-            get 
-            {
-                if (Players.ContainsKey(1))
-                    if (Players[1] != null)
-                        return Players[1];
-                return null;
-            }
-        }
-        public Player SecondPlayer
-        {
-            get
-            {
-                if (Players.ContainsKey(2))
-                    if (Players[2] != null)
-                        return Players[2];
-                return null;
-            }
-        }
+        public SessionInfo SessionInfo { get; set; }
 
         public int PORT;
         public IPAddress ip;
         public IPEndPoint endPoint;
-        Socket serverSocket;
+        public Socket serverSocket;
 
-        public string CommonDataHub = "";
-
-        public GameSessionServer()
+        public GameSessionServer(SessionInfo sessionInfo)
         {
+            SessionInfo = sessionInfo;
             while (!IsUnoccupiedPort(PORT = CreateRandomPort())) ;//генерирует новый допустимый порт для сервера сессии
-            ip = IPAddress.Parse(MvcApplication.GetLocalIPAddress());
+            ip = GetLocalIPAddress();
             endPoint = new IPEndPoint(ip, PORT);
+        }
+
+        public int CreateRandomPort()
+        {
+            int iMin = 49152;
+            int iMax = 65535;
+            Random random = new Random();
+            return random.Next(iMin, iMax);
+        }
+
+        public static IPAddress GetLocalIPAddress()
+        {
+            return Dns.GetHostAddresses("").FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
         }
 
         int TESTCounter = 0;
@@ -75,30 +54,20 @@ namespace BrowserGameServer.GameSession
                 Task task = Task.Run(() =>
                 {
                     Debug.WriteLine("\nNew WSHandler " + (++TESTCounter));
-                    WebSocketHandler newController = new WebSocketHandler(clientSocket, this);
+                    new WebSocketHandler(clientSocket, this);
                 });
             }
-        }
-
-        public bool IsGameBeginning()
-        {
-            if (Players.Count == MaxPlayersCount)
-            {
-                GameState = GameState.InProcess;
-                return true;
-            }
-            else return false;
         }
 
         public bool SwapActiveState()
         {
             PlayerStates temp;
-            if (FirstPlayer.PlayerState == PlayerStates.ActiveLeading || FirstPlayer.PlayerState == PlayerStates.ActiveWaiting &&
-                SecondPlayer.PlayerState == PlayerStates.ActiveLeading || SecondPlayer.PlayerState == PlayerStates.ActiveWaiting)
+            if (SessionInfo.FirstPlayer.PlayerState == PlayerStates.ActiveLeading || SessionInfo.FirstPlayer.PlayerState == PlayerStates.ActiveWaiting &&
+                SessionInfo.SecondPlayer.PlayerState == PlayerStates.ActiveLeading || SessionInfo.SecondPlayer.PlayerState == PlayerStates.ActiveWaiting)
             {
-                temp = FirstPlayer.PlayerState;
-                FirstPlayer.PlayerState = SecondPlayer.PlayerState;
-                SecondPlayer.PlayerState = temp;
+                temp = SessionInfo.FirstPlayer.PlayerState;
+                SessionInfo.FirstPlayer.PlayerState = SessionInfo.SecondPlayer.PlayerState;
+                SessionInfo.SecondPlayer.PlayerState = temp;
                 return true;
             }
             return false;  
@@ -110,10 +79,10 @@ namespace BrowserGameServer.GameSession
         {//вызывается из 2х обработчиков веб сокетов по очереди, но срабатывает 1 раз
             lock (locker)
             {
-                if (FirstPlayer != null)
-                    FirstPlayer.PlayerState = PlayerStates.Disconnected;
-                if (SecondPlayer != null)
-                    SecondPlayer.PlayerState = PlayerStates.Disconnected;
+                if (SessionInfo.FirstPlayer != null)
+                    SessionInfo.FirstPlayer.PlayerState = PlayerStates.Disconnected;
+                if (SessionInfo.SecondPlayer != null)
+                    SessionInfo.SecondPlayer.PlayerState = PlayerStates.Disconnected;
 
                 if (countOfCalls != 0)
                     return;
@@ -125,14 +94,6 @@ namespace BrowserGameServer.GameSession
 
                 Debug.WriteLine(">>Sessions count: " + MvcApplication.ActiveGameSessions.Count + "<<");
             }
-        }
-
-        public int CreateRandomPort()
-        {
-            int iMin = 49152;
-            int iMax = 65535;
-            Random random = new Random();
-            return random.Next(iMin, iMax);
         }
 
         public bool IsUnoccupiedPort(int port)

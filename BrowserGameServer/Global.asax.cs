@@ -19,11 +19,5 @@ namespace BrowserGameServer
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
         }
-
-        public static string GetLocalIPAddress()
-        {
-            String host = Dns.GetHostName();
-            return Dns.GetHostByName(host).AddressList[0].ToString();
-        }
     }
 }

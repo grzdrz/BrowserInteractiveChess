@@ -17,8 +17,10 @@ namespace BrowserGameServer.GameSession
 {
     public class WebSocketHandler
     {
-        GameSessionServer Session;
-        Player PlayerOwner;
+        public SessionManager SM { get; set; }
+        public GameSessionServer SessionServer;
+
+        public Player PlayerOwner { get; set; }
 
         public Socket ClientSocket;
         public NetworkStream Stream;
@@ -28,14 +30,12 @@ namespace BrowserGameServer.GameSession
         public byte[] ByteResponse = new byte[1] { 0 };
         public Dictionary<string, string[]> ParsedRequest = new Dictionary<string, string[]>();
 
-        public WebSocketHandler(Socket socket, GameSessionServer session)
+        public WebSocketHandler(Socket socket, GameSessionServer server)
         {
-            Session = session;
+            SM = new SessionManager();
+            SessionServer = server;
             ClientSocket = socket;
             Stream = new NetworkStream(ClientSocket);
-            PlayerOwner = session.Players
-                .FirstOrDefault(a => a.Value.PlayerAddress == ((IPEndPoint)ClientSocket.RemoteEndPoint).Address.ToString()).Value;
-            if (PlayerOwner != null) PlayerOwner.PlayerHandler = this;
 
             #region "ПРИЕМ ПЕРВОГО ЗАПРОСА"
             //Предпроверка нового клиента
@@ -45,15 +45,11 @@ namespace BrowserGameServer.GameSession
             TimeSpan dTime = TimeSpan.Zero;
             while (!Stream.DataAvailable)
             {
-                if (dTime.TotalMilliseconds > 10000)
-                    break;
-                Thread.Sleep(500);
                 timerCurrent = DateTime.Now;
                 dTime = timerCurrent - timerStart;
-            }
-            if (dTime.TotalMilliseconds > 10000)
-            {
-                return;
+                if (dTime.TotalMilliseconds > 10000)
+                    return;
+                Thread.Sleep(500);
             }
 
             int Count = 0;
@@ -70,11 +66,10 @@ namespace BrowserGameServer.GameSession
             Debug.WriteLine("\nRequest: \n" + Request);
             #endregion
 
-            #region "Парсим запрос"
+            //Парсинг запроса
             ParsedRequest = ParseHttpRequest(Request);
-            #endregion
 
-            #region "Рукопожатие и начало обработки web socket запросов"
+            //Рукопожатие и начало обработки web socket запросов
             if (ParsedRequest.ContainsKey("Upgrade"))
             {
                 if (ParsedRequest["Upgrade"][0] == "websocket")
@@ -83,29 +78,11 @@ namespace BrowserGameServer.GameSession
                     ProcessWebSocketQuery();
                 }
             }         
-            #endregion
         }
 
         public Dictionary<string, string> ParsedWSRequest = new Dictionary<string, string>();
-        public string TempResponse = "";
-        public Dictionary<string, string> SubResponses = new Dictionary<string, string>();
         private void ProcessWebSocketQuery()
         {
-            SubResponses.Add("Side", "");
-            SubResponses.Add("PlayerState", "WaitBegining");
-            SubResponses.Add("BoardState", "");
-
-            if (PlayerOwner.Side == Side.White)
-            {
-                PlayerOwner.PlayerState = PlayerStates.ActiveLeading;
-                SubResponses["Side"] = "White";
-            }
-            else
-            {
-                PlayerOwner.PlayerState = PlayerStates.ActiveWaiting;
-                SubResponses["Side"] = "Black";
-            }
-
             while (true)
             {
                 Request = "";
@@ -117,23 +94,22 @@ namespace BrowserGameServer.GameSession
                 TimeSpan dTime = TimeSpan.Zero;
                 while (!Stream.DataAvailable)
                 {
-                    if (dTime.TotalMilliseconds > 5000)
-                        break;
                     timerCurrent = DateTime.Now;
                     dTime = timerCurrent - timerStart;
-                }
-                if (dTime.TotalMilliseconds > 5000)
-                {
-                    //1)Если дисконектится хотябы 1 игрок, то вся сессия уничтожается.
-                    //2)Если от клиента приходит запрос на контроллер с целью установить статус Loser/Winner, то
-                    //обратно клиенту отсылается новый статус и с его стороны уничтожается вебсокет, и соответственно
-                    //на стороне сервера срабатывает данный участок кода.
+                    if (dTime.TotalMilliseconds > 5000)
+                    {
+                        //1)Если дисконектится хотябы 1 игрок, то вся сессия уничтожается.
+                        //2)Если от клиента приходит запрос на контроллер с целью установить статус Loser/Winner, то
+                        //обратно клиенту отсылается новый статус и с его стороны уничтожается вебсокет, и соответственно
+                        //на стороне сервера срабатывает данный участок кода.
 
-                    Session.FinalizeSession();
-                    Stream.Close();
-                    ClientSocket.Close();
-                    Debug.WriteLine(">>" + PlayerOwner.PlayerLogin + " close socket and stream<<");
-                    return;
+                        SessionServer.FinalizeSession();
+                        Stream.Close();
+                        ClientSocket.Close();
+                        if (PlayerOwner is null) Debug.WriteLine(">> UNKNOWN_PLAYER close socket and stream<<");
+                        else Debug.WriteLine(">>" + PlayerOwner.PlayerNumber + " close socket and stream<<");
+                        return;
+                    }
                 }
 
                 Stream.Read(ByteRequest, 0, ByteRequest.Length);
@@ -147,34 +123,34 @@ namespace BrowserGameServer.GameSession
                 #region "Парсинг запроса"
                 ParsedWSRequest = ParseWebSocketRequest(Request);
 
-                if (PlayerOwner.PlayerState == PlayerStates.Disconnected)
-                    SubResponses["PlayerState"] = "Disconnected";
-                if (PlayerOwner.PlayerState == PlayerStates.Loser)
-                    SubResponses["PlayerState"] = "Loser";
-                if (PlayerOwner.PlayerState == PlayerStates.Winner)
-                    SubResponses["PlayerState"] = "Winner";
-                if (Session.IsGameBeginning())
+                int sessionId = int.Parse(ParsedWSRequest["SessionId"]);
+                int playerId = int.Parse(ParsedWSRequest["PlayerNumber"]);
+                //первый коннект-запрос
+                if (ParsedWSRequest.ContainsKey("IsConnectedQuery"))
                 {
+                    //устанавливаем игрока и его цвет
+                    FirstQueryToConnect(sessionId, playerId);
+                    ParsedWSRequest.Remove("IsConnectedQuery");
+                }
+             
+                if (SessionServer.SessionInfo.Players.Count == 2)
+                {
+                    ParsedWSRequest["PlayerState"] = PlayerOwner.PlayerState.ToString();
                     //чья очередь ходить
                     if (PlayerOwner.PlayerState == PlayerStates.ActiveLeading)
-                    {
-                        SubResponses["PlayerState"] = "ActiveLeading";
-                        Session.CommonDataHub = ParsedWSRequest["BoardState"];
-                    }
+                        SessionServer.SessionInfo.CommonDataHub = ParsedWSRequest["TableState"];
                     if (PlayerOwner.PlayerState == PlayerStates.ActiveWaiting)
-                    {
-                        SubResponses["PlayerState"] = "ActiveWaiting";
-                        SubResponses["BoardState"] = Session.CommonDataHub;
-                    }
+                        ParsedWSRequest["TableState"] = SessionServer.SessionInfo.CommonDataHub;
                 }
+                else
+                    ParsedWSRequest["PlayerState"] = PlayerStates.WaitBegining.ToString();
                 #endregion
 
 
                 #region "Отправка веб сокету ответа"
-                ByteResponse = EncodeWebSocketMessage(BuildWebSocketRequest(SubResponses));
+                ByteResponse = EncodeWebSocketMessage(BuildWebSocketResponse(ParsedWSRequest));
                 Stream.Write(ByteResponse, 0, ByteResponse.Length);
                 Stream.Flush();
-                TempResponse = "";
                 #endregion
             }
         }
@@ -301,6 +277,31 @@ namespace BrowserGameServer.GameSession
         }
         #endregion
 
+        public void FirstQueryToConnect(int sessionId, int playerNumber)
+        {
+            var curSession = SM.FindSessionById(sessionId);
+            PlayerOwner = curSession.Players.Find(a => a.PlayerNumber == playerNumber);
+
+            //если один игрок уже есть в сессии, то цвет и состояние второго подбирается на основе первого.
+            if (SessionServer.SessionInfo.Players.Count == 2)
+            {
+                if (SessionServer.SessionInfo.Players.FirstOrDefault().Side == Side.White)
+                    PlayerOwner.Side = Side.Black;
+                else
+                    PlayerOwner.Side = Side.White;
+                if (SessionServer.SessionInfo.Players.FirstOrDefault().PlayerState == PlayerStates.ActiveLeading)
+                    PlayerOwner.PlayerState = PlayerStates.ActiveWaiting;
+                else
+                    PlayerOwner.PlayerState = PlayerStates.ActiveLeading;
+            }
+            else if (SessionServer.SessionInfo.Players.Count == 1)
+            {
+                PlayerOwner.Side = Side.White;
+                PlayerOwner.PlayerState = PlayerStates.ActiveLeading;
+            }
+            ParsedWSRequest["Side"] = PlayerOwner.Side.ToString();
+        }
+
         private Dictionary<string, string[]> ParseHttpRequest(string request)
         {
             string[] tempReq = request.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);//массив пакетов строк
@@ -343,7 +344,7 @@ namespace BrowserGameServer.GameSession
 
             return dict;
         }
-        private string BuildWebSocketRequest(Dictionary<string, string> subResponses)
+        private string BuildWebSocketResponse(Dictionary<string, string> subResponses)
         {
             string result = "";
             foreach (var e in subResponses)
@@ -355,9 +356,11 @@ namespace BrowserGameServer.GameSession
         }
 
         //Формат данных общения с клиентом:
-        //Side:...<delimiter>                                                   сервер --> клиенты
-        //PlayerState:...<delimiter>                                            сервер <--> клиенты
-        //BoardState:(id, x1, y1);(id, x2, y2);...<delimiter>                   сервер <--> клиенты
+        //Side:...<delimiter>
+        //PlayerState:...<delimiter>
+        //TableState:(id, x1, y1);(id, x2, y2);...<delimiter>
+        //PlayerNumber:...<delimiter>
+        //SessionId:...<delimiter>
 
         //последняя строка это id конкретной фигуры и ее относительные координаты(относительно положения доски на холсте)
         //относительные координаты нужны для синхронизации координат игроков с разными разрешениями экрана

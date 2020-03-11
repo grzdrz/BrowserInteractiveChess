@@ -169,11 +169,10 @@
     <Compile Include="GameSessionSignalR\Player.cs" />
     <Compile Include="GameSessionSignalR\SessionInfo.cs" />
     <Compile Include="GameSessionSignalR\SessionManager.cs" />
-    <Compile Include="GameSession\temp\ClientProfile.cs" />
-    <Compile Include="GameSession\temp\Controller.cs" />
+    <Compile Include="GameSession\SessionInfo.cs" />
+    <Compile Include="GameSession\SessionManager.cs" />
     <Compile Include="GameSession\GameSessionServer.cs" />
     <Compile Include="GameSession\Player.cs" />
-    <Compile Include="GameSession\temp\Server.cs" />
     <Compile Include="GameSession\WebSocketHandler.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
