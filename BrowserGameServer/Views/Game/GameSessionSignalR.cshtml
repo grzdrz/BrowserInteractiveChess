@@ -1,0 +1,157 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+    <canvas></canvas>
+    <button class="button1">Continue</button>@*посылает запрос контроллеру на смену очереди хода*@
+    <button class="button2">Surrender</button>@*посылает запрос контроллеру о том что игрок сдается*@
+
+    <style>
+        Canvas {
+            position: absolute;
+            z-index: -1;@*для вывода элементов html над холстом*@
+            top: 0px;
+            left: 0px;
+        }
+        .botton1{
+            height: 50px;
+            width: 100px;
+        }
+        .botton2{
+            height: 50px;
+            width: 100px;
+            top: 60px;
+        }
+    </style>
+
+    <script src="~/Scripts/jquery-3.4.1.min.js"></script>
+    <script src="~/Scripts/jquery.signalR-2.4.1.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+
+    <script src="~/Scripts/Chess/GameInfo.js"></script>
+    <script src="~/Scripts/Chess/ChessManager.js"></script>
+    <script src="~/Scripts/Chess/CanvasManager.js"></script>
+    <script>
+       
+            let gameState = GameStates.WaitBegining;
+            let playerSide;
+
+            let canvasManager = new CanvasManager();
+            canvasManager.canvas.addEventListener("mousedown", canvasManager.mouseDown);
+
+            let chessManager = new ChessManager();
+            chessManager.addChessToBoard();
+            startAnimationCycle();
+
+
+            //логика непрерывного обмена на SignalR
+            let gameHub;
+            let sessionId = @ViewBag.sessionId;
+            let playerNumber = @ViewBag.playerNumber;
+            let playerId;
+            $(
+                //cсылка на автоматически-сгенерированный прокси хаб
+                gameHub = $.connection.gameHub
+            );
+
+            gameHub.client.onConnected = function (id) {
+                playerId = id;
+                let gameInfo = {
+                    Side: playerSide,
+                    PlayerState: "WaitBegining",
+                    BoardState: ""
+                };
+                gameHub.server.send(gameInfo, sessionId);
+            };
+
+            gameHub.client.sendGameState = function (gameInfo) {
+                //получаем цвет игрока(при первом запросе, дальше он не меняется) и игровое состояние
+                numberToEnum(gameInfo);
+                playerSide = gameInfo.Side;
+                gameState = gameInfo.PlayerState;
+
+
+                //ждущий своего хода игрок получает состояние объектов-фигур от активного игрока через сервер
+                if (gameState === "ActiveWaiting") {
+                    surrenderButton.disabled = false;
+                    continueButton.disabled = true;
+
+                    chessManager.isMoved = false;
+                    chessManager.updateChess(gameInfo.BoardState);
+
+                    //если короля ждущего игрока убивают, то он автоматически сдается
+                    let t1 = chessManager.board.dictOfChess.get(0);
+                    let t2 = chessManager.board.dictOfChess.get(1);
+                    if ((playerSide === "White" && !t1) || (playerSide === "Black" && !t2)) {
+                        gameHub.server.surrender(sessionId, playerNumber);
+                    }
+                }
+
+                //активный игрок отправляет состояние своего стола ждущему через сервер
+                if (gameState === "ActiveLeading") {
+                    //пока игрок ждет своей очереди, он не может продолжить ход
+                    surrenderButton.disabled = false;
+                    continueButton.disabled = false;
+                    gameInfo.BoardState = chessManager.buildChessPositionsString();
+                }
+
+                gameHub.server.send(gameInfo, sessionId);
+            };
+
+            gameHub.client.onDisconnected = function () {///////////
+                canvasManager.canvas.disabled = true;
+                continueButton.disabled = true;
+                surrenderButton.disabled = true;
+            };
+
+            gameHub.client.lose = function () {
+                canvasManager.canvas.disabled = true;
+                continueButton.disabled = true;
+                surrenderButton.disabled = true;
+                alert("You lose");
+                gameHub.server.disconnect(sessionId);
+            };
+
+            gameHub.client.win = function () {
+                canvasManager.canvas.disabled = true;
+                continueButton.disabled = true;
+                surrenderButton.disabled = true;
+                alert("You win");
+                gameHub.server.disconnect(sessionId);
+            };
+
+            $(
+                //открываем соединение
+                $.connection.hub.start().done(function () {
+                    gameHub.server.connect(sessionId, playerNumber);//асинх???
+                })
+            );
+
+
+            let continueButton = document.querySelector(".button1");
+            continueButton.disabled = true;
+            continueButton.addEventListener("click", nextMove);
+            function nextMove() {
+                if (chessManager.isMoved) {
+                    continueButton.disabled = true;
+                    gameHub.server.swapActiveStates(sessionId);
+                }
+            }
+
+            let surrenderButton = document.querySelector(".button2");
+            surrenderButton.disabled = true;
+            surrenderButton.addEventListener("click", surrender);
+            function surrender() {
+                surrenderButton.disabled = true;
+                gameHub.server.surrender(sessionId, playerNumber);
+            }
+       
+    </script>
+</body>
+</html>
+

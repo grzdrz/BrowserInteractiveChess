@@ -1,0 +1,201 @@
+﻿
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta charset="utf-8">
+    <title>GameSession</title>
+</head>
+<body>
+    <canvas></canvas>
+    <button class="button1">Continue</button>@*посылает запрос контроллеру на смену очереди хода*@
+    <button class="button2">Surrender</button>@*посылает запрос контроллеру о том что игрок сдается*@
+
+    <style>
+        Canvas {
+            position: absolute;
+            z-index: -1;@*для вывода элементов html над холстом*@
+            top: 0px;
+            left: 0px;
+        }
+        .botton1{
+            height: 50px;
+            width: 100px;
+        }
+        .botton2{
+            height: 50px;
+            width: 100px;
+            top: 60px;
+        }
+    </style>
+
+    <script src="~/Scripts/Chess/GameInfo.js"></script>
+    <script src="~/Scripts/Chess/ChessManager.js"></script>
+    <script src="~/Scripts/Chess/CanvasManager.js"></script>
+    <script>
+        
+            let gameState = GameStates.WaitBegining;
+            let playerSide;
+
+            let canvasManager = new CanvasManager();
+            canvasManager.canvas.addEventListener("mousedown", canvasManager.mouseDown);
+
+            let chessManager = new ChessManager();
+            chessManager.addChessToBoard();
+            startAnimationCycle();
+
+
+            //логика непрерывного обмена на WebSocket
+            //адрес сервера сессии
+            let ip = "@ViewBag.Ip";
+            let port = "@ViewBag.PORT";
+            let sessionId = @ViewBag.sessionId;
+            let playerNumber = @ViewBag.playerNumber;
+            let socket = new WebSocket("ws://" + ip + ":" + port);
+
+            window.onclose = function () { socket.close(); }
+            window.onunload = function () { socket.close(); }
+
+            socket.onopen = function (event) {//первый запрос по вебсокету от клиента
+                //для отправки серверу по первому запросу(после рукопожатия)
+                let request = "Side:" + playerSide + "<delimiter>" +
+                    "PlayerState:WaitBegining<delimiter>" +
+                    "IsCheckmate:false<delimiter>" +
+                    "BoardState:" + chessManager.buildChessPositionsString() + "<delimiter>" +
+                    "PlayerNumber:" + playerNumber + "<delimiter>" +
+                    "SessionId:" + sessionId + "<delimiter>" +
+                    "IsConnectedQuery:true<delimiter>";
+
+                socket.send(request + "\r\n\r\n");
+            };
+
+            let parsedResponse;
+            //цикл обмена данными о текущей игре с сервером
+            socket.onmessage = function (event) {
+                parsedResponse = canvasManager.parseResponse(event.data);
+
+                //получаем цвет(при первом запросе, дальше он не меняется) и игровое состояние
+                gameState = parsedResponse.get("PlayerState");
+                playerSide = parsedResponse.get("Side");
+
+                //ждущий своего хода игрок получает состояние объектов-фигур от активного игрока через сервер
+                if (gameState === "ActiveWaiting") {
+                    if (!surrenderInProcess && !continueInProcess) surrenderButton.disabled = false;
+                    if (!surrenderInProcess && !continueInProcess) continueButton.disabled = true;
+
+                    chessManager.isMoved = false;
+                    chessManager.updateChess(parsedResponse.get("BoardState"));
+
+                    //если короля ждущего игрока убивают, то он автоматически сдается
+                    let t1 = chessManager.board.dictOfChess.get(0);
+                    let t2 = chessManager.board.dictOfChess.get(1);
+                    if ((playerSide === "White" && !t1) || (playerSide === "Black" && !t2)) {
+                        surrender();
+                        socket.close();
+                    }
+                }
+                //активный игрок отправляет состояние своего стола ждущему через сервер
+                if (gameState === "ActiveLeading") {
+                    //пока игрок ждет своей очереди, он не может продолжить ход
+                    if (!surrenderInProcess && !continueInProcess) surrenderButton.disabled = false;
+                    if (!surrenderInProcess && !continueInProcess) continueButton.disabled = false;
+                    parsedResponse.set("BoardState", chessManager.buildChessPositionsString());
+                }
+                //определение победителя происходит при отправке на контроллер запроса о том что игрок сдался
+                //(см.метод surrender и одноименный контроллер)
+                if (gameState === "Loser") {
+                    alert("You lose");
+                    socket.close();
+                }
+                if (gameState === "Winner") {
+                    alert("You win");
+                    socket.close();
+                }
+                //если один игрок вышел из игры выключив страницу/браузер, либо попытался создать новую сессию перезайдя в игру,
+                //то текущая сессия прерывается(см. на сервере метод FinalizeSession() и обработчик запросов по веб сокету)
+                if (gameState === "Disconnected") {
+                    alert("You opponent disconnected");
+                    socket.close();
+                }
+
+                socket.send(canvasManager.buildRequest(parsedResponse) + "\r\n\r\n");
+            };
+            socket.onclose = function (event) {
+                if (event.wasClean) {
+                    alert(`[close] Соединение закрыто чисто, код=${event.code} причина=${event.reason}`);
+                }
+                else {
+                    // например, сервер убил процесс или сеть недоступна
+                    // обычно в этом случае event.code 1006
+                    alert('[close] Соединение прервано');
+                }
+            };
+            socket.onerror = function (error) {
+                alert(`[error] ${error.message}`);
+            };
+
+            let continueInProcess = false;
+            let continueButton = document.querySelector(".button1");
+            continueButton.disabled = true;
+            continueButton.addEventListener("click", nextMove);
+            async function nextMove() {
+                if (chessManager.isMoved) {
+                    continueInProcess = true;
+                    continueButton.disabled = true;
+                    let url = "http://" + document.location.host + "/Game/Continue";
+                    let response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json;charset=utf-8'
+                        },
+                        body: JSON.stringify({ sessionId: sessionId })
+                    });
+
+                    if (response.ok) { // если HTTP-статус в диапазоне 200-299
+                        continueInProcess = false;
+                        let str = await response.text();
+                    } else {
+                        continueInProcess = false;
+                        continueButton.disabled = false;
+                        alert("Ошибка HTTP: " + response.status);
+                    }
+                }
+            }
+
+            let surrenderInProcess = false;
+            let surrenderButton = document.querySelector(".button2");
+            surrenderButton.disabled = true;
+            surrenderButton.addEventListener("click", surrender);
+            async function surrender() {
+                surrenderInProcess = true;
+                surrenderButton.disabled = true;
+                let url = "http://" + document.location.host + "/Game/Surrender";
+                let response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json;charset=utf-8'
+                    },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        playerNumber: playerNumber
+                    })
+                });
+
+                if (response.ok) { // если HTTP-статус в диапазоне 200-299
+                    surrenderInProcess = false;
+                    let str = await response.text();
+                } else {
+                    surrenderInProcess = false;
+                    surrenderButton.disabled = false;
+                    alert("Ошибка HTTP: " + response.status);
+                }
+            }
+        
+    </script>
+</body>
+</html>

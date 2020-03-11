@@ -17,18 +17,18 @@ namespace BrowserGameServer.GameSession
 {
     public class WebSocketHandler
     {
-        public SessionManager SM { get; set; }
-        public GameSessionServer SessionServer;
+        public SessionManager SM { get; set; } = new SessionManager();
+        public GameSessionServer SessionServer { get; set; }
 
         public Player PlayerOwner { get; set; }
 
-        public Socket ClientSocket;
-        public NetworkStream Stream;
+        public Socket ClientSocket { get; set; }
+        public NetworkStream Stream { get; set; }
 
-        public string Request = "";
-        public byte[] ByteRequest = new byte[1024];
-        public byte[] ByteResponse = new byte[1] { 0 };
-        public Dictionary<string, string[]> ParsedRequest = new Dictionary<string, string[]>();
+        public string Request { get; set; } = "";
+        public byte[] ByteRequest { get; set; } = new byte[1024];
+        public byte[] ByteResponse { get; set; } = new byte[1] { 0 };
+        public Dictionary<string, string[]> ParsedRequest { get; set; } = new Dictionary<string, string[]>();
 
         public WebSocketHandler(Socket socket, GameSessionServer server)
         {
@@ -87,7 +87,7 @@ namespace BrowserGameServer.GameSession
             {
                 Request = "";
                 ByteRequest = new byte[1024];
-                #region "ПРИЕМ ЗАПРОСОВ ПО WEB SOCKET"
+                #region "Прием запросов"
                 //Ожидает 5 секунд запрос от клиента
                 DateTime timerStart = DateTime.Now;
                 DateTime timerCurrent = DateTime.Now;
@@ -98,14 +98,7 @@ namespace BrowserGameServer.GameSession
                     dTime = timerCurrent - timerStart;
                     if (dTime.TotalMilliseconds > 5000)
                     {
-                        //1)Если дисконектится хотябы 1 игрок, то вся сессия уничтожается.
-                        //2)Если от клиента приходит запрос на контроллер с целью установить статус Loser/Winner, то
-                        //обратно клиенту отсылается новый статус и с его стороны уничтожается вебсокет, и соответственно
-                        //на стороне сервера срабатывает данный участок кода.
-
                         SessionServer.FinalizeSession();
-                        Stream.Close();
-                        ClientSocket.Close();
                         if (PlayerOwner is null) Debug.WriteLine(">> UNKNOWN_PLAYER close socket and stream<<");
                         else Debug.WriteLine(">>" + PlayerOwner.PlayerNumber + " close socket and stream<<");
                         return;
@@ -120,34 +113,35 @@ namespace BrowserGameServer.GameSession
                 #endregion
 
 
-                #region "Парсинг запроса"
+                #region "Парсинг и обработка запросов"
                 ParsedWSRequest = ParseWebSocketRequest(Request);
 
-                int sessionId = int.Parse(ParsedWSRequest["SessionId"]);
-                int playerId = int.Parse(ParsedWSRequest["PlayerNumber"]);
                 //первый коннект-запрос
                 if (ParsedWSRequest.ContainsKey("IsConnectedQuery"))
                 {
+                    int sessionId = int.Parse(ParsedWSRequest["SessionId"]);
+                    int playerId = int.Parse(ParsedWSRequest["PlayerNumber"]);
                     //устанавливаем игрока и его цвет
                     FirstQueryToConnect(sessionId, playerId);
                     ParsedWSRequest.Remove("IsConnectedQuery");
                 }
-             
+                if (PlayerOwner.PlayerState == PlayerStates.Disconnected) break;
+
                 if (SessionServer.SessionInfo.Players.Count == 2)
                 {
                     ParsedWSRequest["PlayerState"] = PlayerOwner.PlayerState.ToString();
                     //чья очередь ходить
                     if (PlayerOwner.PlayerState == PlayerStates.ActiveLeading)
-                        SessionServer.SessionInfo.CommonDataHub = ParsedWSRequest["TableState"];
+                        SessionServer.SessionInfo.CommonDataHub = ParsedWSRequest["BoardState"];
                     if (PlayerOwner.PlayerState == PlayerStates.ActiveWaiting)
-                        ParsedWSRequest["TableState"] = SessionServer.SessionInfo.CommonDataHub;
+                        ParsedWSRequest["BoardState"] = SessionServer.SessionInfo.CommonDataHub;
                 }
                 else
                     ParsedWSRequest["PlayerState"] = PlayerStates.WaitBegining.ToString();
                 #endregion
 
 
-                #region "Отправка веб сокету ответа"
+                #region "Отправка ответов"
                 ByteResponse = EncodeWebSocketMessage(BuildWebSocketResponse(ParsedWSRequest));
                 Stream.Write(ByteResponse, 0, ByteResponse.Length);
                 Stream.Flush();
@@ -358,9 +352,10 @@ namespace BrowserGameServer.GameSession
         //Формат данных общения с клиентом:
         //Side:...<delimiter>
         //PlayerState:...<delimiter>
-        //TableState:(id, x1, y1);(id, x2, y2);...<delimiter>
+        //BoardState:(id, x1, y1);(id, x2, y2);...<delimiter>
         //PlayerNumber:...<delimiter>
         //SessionId:...<delimiter>
+        //IsConnectedQuery:...<delimiter>(на один запрос)
 
         //последняя строка это id конкретной фигуры и ее относительные координаты(относительно положения доски на холсте)
         //относительные координаты нужны для синхронизации координат игроков с разными разрешениями экрана

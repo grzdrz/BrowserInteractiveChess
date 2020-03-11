@@ -14,11 +14,14 @@ namespace BrowserGameServer.GameSession
     public class GameSessionServer
     {
         public SessionInfo SessionInfo { get; set; }
+        public SessionManager SM { get; set; } = new SessionManager();
 
-        public int PORT;
-        public IPAddress ip;
-        public IPEndPoint endPoint;
-        public Socket serverSocket;
+        public int PORT { get; set; }
+        public IPAddress ip { get; set; }
+        public IPEndPoint endPoint { get; set; }
+        public Socket serverSocket { get; set; }
+
+        public List<WebSocketHandler> ClientHandlers { get; set; } = new List<WebSocketHandler>();
 
         public GameSessionServer(SessionInfo sessionInfo)
         {
@@ -35,67 +38,6 @@ namespace BrowserGameServer.GameSession
             Random random = new Random();
             return random.Next(iMin, iMax);
         }
-
-        public static IPAddress GetLocalIPAddress()
-        {
-            return Dns.GetHostAddresses("").FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-        }
-
-        int TESTCounter = 0;
-        public void StartServer()
-        {
-            serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            serverSocket.Bind(endPoint);
-            serverSocket.Listen(10);
-            Debug.WriteLine("\nSERVER STARTED");
-            while (true)
-            {
-                Socket clientSocket = serverSocket.Accept();
-                Task task = Task.Run(() =>
-                {
-                    Debug.WriteLine("\nNew WSHandler " + (++TESTCounter));
-                    new WebSocketHandler(clientSocket, this);
-                });
-            }
-        }
-
-        public bool SwapActiveState()
-        {
-            PlayerStates temp;
-            if (SessionInfo.FirstPlayer.PlayerState == PlayerStates.ActiveLeading || SessionInfo.FirstPlayer.PlayerState == PlayerStates.ActiveWaiting &&
-                SessionInfo.SecondPlayer.PlayerState == PlayerStates.ActiveLeading || SessionInfo.SecondPlayer.PlayerState == PlayerStates.ActiveWaiting)
-            {
-                temp = SessionInfo.FirstPlayer.PlayerState;
-                SessionInfo.FirstPlayer.PlayerState = SessionInfo.SecondPlayer.PlayerState;
-                SessionInfo.SecondPlayer.PlayerState = temp;
-                return true;
-            }
-            return false;  
-        }
-
-        static object locker = new object();//такая синхронизация в пуле не работает???
-        public int countOfCalls = 0;
-        public void FinalizeSession()
-        {//вызывается из 2х обработчиков веб сокетов по очереди, но срабатывает 1 раз
-            lock (locker)
-            {
-                if (SessionInfo.FirstPlayer != null)
-                    SessionInfo.FirstPlayer.PlayerState = PlayerStates.Disconnected;
-                if (SessionInfo.SecondPlayer != null)
-                    SessionInfo.SecondPlayer.PlayerState = PlayerStates.Disconnected;
-
-                if (countOfCalls != 0)
-                    return;
-
-                countOfCalls++;
-                MvcApplication.ActiveGameSessions.Remove(this);//удаляем объект сессии из колекции сессий, что бы его мог съесть мусорщик
-                this.serverSocket.Close();//закрываем серверный сокет
-                //клиентские сокеты/потоки закроются сами после выставления статуса Disconnected и/или разрыва сокета со стороны клиента
-
-                Debug.WriteLine(">>Sessions count: " + MvcApplication.ActiveGameSessions.Count + "<<");
-            }
-        }
-
         public bool IsUnoccupiedPort(int port)
         {
             bool isAvailable = true;
@@ -112,6 +54,52 @@ namespace BrowserGameServer.GameSession
                 }
             }
             return isAvailable;
+        }
+        public static IPAddress GetLocalIPAddress()
+        {
+            return Dns.GetHostAddresses("").FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+        }
+
+        int TESTCounter = 0;
+        public void StartServer()
+        {
+            serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            serverSocket.Bind(endPoint);
+            serverSocket.Listen(10);
+            Debug.WriteLine("\nSERVER STARTED");
+            while (true)
+            {
+                Socket clientSocket = serverSocket.Accept();
+                /*Task task = Task.Run*/
+                new Thread(() =>
+                {
+                    Debug.WriteLine("\nNew WSHandler " + (++TESTCounter));
+                    ClientHandlers.Add(new WebSocketHandler(clientSocket, this));
+                }).Start();
+            }
+        }
+
+        static object locker = new object();
+        private int countOfCalls = 0;
+        public void FinalizeSession()
+        {//вызывается из 2х обработчиков веб сокетов по очереди, но срабатывает 1 раз
+            lock (locker)
+            {
+                if (countOfCalls != 0)
+                    return;
+                countOfCalls++;
+
+                var sessionToDelete = SessionManager.Sessions.Find(x => x.SessionId == this.SessionInfo.SessionId);
+                SessionManager.Sessions.Remove(sessionToDelete);
+                foreach (var e in sessionToDelete.Players)
+                    e.PlayerState = PlayerStates.Disconnected;
+                foreach (var e in ClientHandlers)
+                {
+                    e.ClientSocket.Close();
+                    e.Stream.Close();
+                }
+                Debug.WriteLine(">>Sessions count: " + SessionManager.Sessions.Count + "<<");
+            }
         }
     }
 }

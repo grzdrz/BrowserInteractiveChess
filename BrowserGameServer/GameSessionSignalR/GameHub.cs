@@ -52,6 +52,8 @@ namespace BrowserGameServer.GameSessionSignalR
             var id = Context.ConnectionId;
             var surPlayer = curSession.Players.Find(a => a.ConnectionId == id);
 
+            curSession.Players.Find(a => a.PlayerNumber == playerNumber).PlayerState = PlayerStates.Loser;
+            curSession.Players.Find(a => !(a.PlayerNumber == playerNumber)).PlayerState = PlayerStates.Winner;
             Clients.Client(curSession.Players.Find(a => a.PlayerNumber == playerNumber).ConnectionId).lose();
             Clients.Client(curSession.Players.Find(a => !(a.PlayerNumber == playerNumber)).ConnectionId).win();
         }

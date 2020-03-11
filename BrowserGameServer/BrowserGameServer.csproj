@@ -209,9 +209,9 @@
     <Content Include="Scripts\bootstrap.js" />
     <Content Include="Scripts\bootstrap.min.js" />
     <None Include="Scripts\jquery-3.4.1.intellisense.js" />
-    <Content Include="Scripts\ChessSignalR\CanvasManager.js" />
-    <Content Include="Scripts\ChessSignalR\ChessManager.js" />
-    <Content Include="Scripts\ChessSignalR\GameInfo.js" />
+    <Content Include="Scripts\Chess\CanvasManager.js" />
+    <Content Include="Scripts\Chess\ChessManager.js" />
+    <Content Include="Scripts\Chess\GameInfo.js" />
     <Content Include="Scripts\jquery-3.4.1.js" />
     <Content Include="Scripts\jquery-3.4.1.min.js" />
     <Content Include="Scripts\jquery-3.4.1.slim.js" />
@@ -240,10 +240,10 @@
     <Content Include="Views\Home\Index.cshtml" />
     <Content Include="Views\Account\Login.cshtml" />
     <Content Include="Views\Account\Register.cshtml" />
-    <Content Include="Views\Game\GameSession.cshtml" />
+    <Content Include="Views\Game\GameSessionWebSocket.cshtml" />
     <Content Include="Views\Game\MainMenu.cshtml" />
     <Content Include="Views\Game\CurrentSessions.cshtml" />
-    <Content Include="Views\Game\GameSessionSR.cshtml" />
+    <Content Include="Views\Game\GameSessionSignalR.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />

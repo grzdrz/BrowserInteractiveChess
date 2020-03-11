@@ -17,7 +17,9 @@ namespace BrowserGameServer.Controllers
             return View();
         }
 
-        public ActionResult GameSession()
+        //=======================================================================================
+
+        public ActionResult GameSessionWebSocket()
         {
             //if(!HttpContext.GetOwinContext().Authentication.User.Identity.IsAuthenticated)
             //    return Redirect("/Account/Login"); 
@@ -121,9 +123,9 @@ namespace BrowserGameServer.Controllers
                 newPlayer.PlayerNumber = playerNumber = 1;
                 newSession.Players.Add(newPlayer);
 
-                newSession.SessionId = sessionId = GameSessionSignalR.SessionManager.Sessions.Count - 1;////////на guid
+                newSession.SessionId = sessionId = BrowserGameServer.GameSessionSignalR.SessionManager.Sessions.Count - 1;////////на guid
 
-                Task.Run(() => newSession.SessionServer.StartServer());//заменить на thread для синхронизации через локер//////////////////
+                Task.Run(() => newSession.SessionServer.StartServer());
             }
 
             ViewBag.sessionId = sessionId;
@@ -134,70 +136,37 @@ namespace BrowserGameServer.Controllers
             return View();
         }
 
+        SessionManager SM = new SessionManager();
         [HttpPost]
-        public string NextMove()
+        public string Continue(int sessionId)
         {
-            //var currentClientIPAddress = HttpContext.Request.UserHostAddress;
-            //if (currentClientIPAddress == "::1")
-            //{
-            //    currentClientIPAddress = GameSessionServer.GetLocalIPAddress().ToString();
-            //}
+            var curSession = SM.FindSessionById(sessionId);
 
-            //var tempSession = SessionManager.Sessions.FirstOrDefault(a =>
-            //a.Players.FirstOrDefault(b => b.PlayerAddress == currentClientIPAddress) != null);
-            //bool result = false;
-            //if (tempSession != null)
-            //{
-            //    result = tempSession.SessionServer.SwapActiveState();
-            //}
+            var temp = curSession.Players[0].PlayerState;
+            curSession.Players[0].PlayerState = curSession.Players[1].PlayerState;
+            curSession.Players[1].PlayerState = temp;
+
+            return "";
+        }
+        [HttpPost]
+        public string Surrender(int sessionId, int playerNumber)
+        {
+            var curSession = SM.FindSessionById(sessionId);
+
+            curSession.Players.Find(a => a.PlayerNumber == playerNumber).PlayerState = PlayerStates.Loser;
+            curSession.Players.Find(a => !(a.PlayerNumber == playerNumber)).PlayerState = PlayerStates.Winner;
 
             return "";
         }
 
-        [HttpPost]
-        public string Surrender()
-        {
-            //var currentClientIPAddress = HttpContext.Request.UserHostAddress;
-            //if (currentClientIPAddress == "::1")
-            //{
-            //    currentClientIPAddress = GameSessionServer.GetLocalIPAddress().ToString();
-            //}
+        //=======================================================================================
 
-            //var tempSession = SessionManager.Sessions.FirstOrDefault(a =>
-            //a.Players.FirstOrDefault(b => b.PlayerAddress == currentClientIPAddress) != null);
-            
-            //if (tempSession != null)
-            //{
-            //    if (tempSession.FirstPlayer.PlayerAddress == currentClientIPAddress)
-            //    {
-            //        tempSession.FirstPlayer.PlayerState = PlayerStates.Loser;
-            //        tempSession.SecondPlayer.PlayerState = PlayerStates.Winner;
-            //    }
-            //    else
-            //    {
-            //        tempSession.FirstPlayer.PlayerState = PlayerStates.Winner;
-            //        tempSession.SecondPlayer.PlayerState = PlayerStates.Loser;
-            //    }
-            //}
-
-            return "";
-        }
-
-
-        //public ActionResult CurrentSessions()/*!!!*/
-        //{
-        //    ViewBag.Sessions = MvcApplication.ActiveGameSessions;
-        //    return View();
-        //}
-
-        //==========================================================
-
-        public ActionResult GameSessionSR()
+        public ActionResult GameSessionSignalR()
         {
             int sessionId;
             int playerNumber;
 
-            var notActiveSession = GameSessionSignalR.SessionManager.Sessions.FirstOrDefault(a => !(a.IsGameActive));
+            var notActiveSession = BrowserGameServer.GameSessionSignalR.SessionManager.Sessions.FirstOrDefault(a => !(a.IsGameActive));
             if (notActiveSession != null)
             {
                 var newPlayer = new GameSessionSignalR.Player();
@@ -210,14 +179,14 @@ namespace BrowserGameServer.Controllers
             else
             {
                 var newSession = new GameSessionSignalR.SessionInfo();
-                GameSessionSignalR.SessionManager.Sessions.Add(newSession);
+                BrowserGameServer.GameSessionSignalR.SessionManager.Sessions.Add(newSession);
 
                 var newPlayer = new GameSessionSignalR.Player();
                 newPlayer.PlayerSession = newSession;
                 newPlayer.PlayerNumber = playerNumber = 1;
                 newSession.Players.Add(newPlayer);
 
-                newSession.SessionId = sessionId = GameSessionSignalR.SessionManager.Sessions.Count - 1;////////на guid
+                newSession.SessionId = sessionId = BrowserGameServer.GameSessionSignalR.SessionManager.Sessions.Count - 1;////////на guid
             }
 
             ViewBag.sessionId = sessionId;

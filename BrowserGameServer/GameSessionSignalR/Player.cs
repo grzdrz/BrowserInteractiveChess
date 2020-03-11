@@ -11,7 +11,9 @@ namespace BrowserGameServer.GameSessionSignalR
     {
         WaitBegining,
         ActiveLeading,
-        ActiveWaiting
+        ActiveWaiting,
+        Winner,
+        Loser
     }
 
     public enum Side
