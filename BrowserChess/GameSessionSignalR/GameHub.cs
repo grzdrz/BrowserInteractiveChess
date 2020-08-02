@@ -19,15 +19,6 @@ namespace BrowserChess.GameSessionSignalR
 
             if (curSession == null) return;
             Player curPlayer = curSession.Players.FirstOrDefault(a => a.ConnectionId == id);
-            //Player curPlayer = null;
-            //try
-            //{
-            //    curPlayer = curSession.Players.FirstOrDefault(a => a.ConnectionId == id);
-            //}
-            //catch
-            //{
-            //    return;
-            //}
 
             if (curPlayer.Side == Side.White) gameInfo.Side = Side.White;
             else gameInfo.Side = Side.Black;
